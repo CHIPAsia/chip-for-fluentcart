@@ -63,14 +63,40 @@ class Chip extends AbstractPaymentGateway
             $order = $paymentInstance->order;
             $transaction = $paymentInstance->transaction;
 
+            // Get order items
+            $orderItems = [];
+            if (isset($order->items) && is_array($order->items)) {
+                $orderItems = $order->items;
+            } elseif (method_exists($order, 'getItems')) {
+                $orderItems = $order->getItems();
+            }
+
+            // Get customer full name
+            $customerFullName = '';
+            if (isset($order->customer_first_name) || isset($order->customer_last_name)) {
+                $firstName = $order->customer_first_name ?? '';
+                $lastName = $order->customer_last_name ?? '';
+                $customerFullName = trim($firstName . ' ' . $lastName);
+            } elseif (isset($order->billing_first_name) || isset($order->billing_last_name)) {
+                $firstName = $order->billing_first_name ?? '';
+                $lastName = $order->billing_last_name ?? '';
+                $customerFullName = trim($firstName . ' ' . $lastName);
+            } elseif (isset($order->customer_name)) {
+                $customerFullName = $order->customer_name;
+            } elseif (isset($order->name)) {
+                $customerFullName = $order->name;
+            }
+
             // Prepare payment data
             $paymentData = [
                 'amount' => $transaction->total,
                 'currency' => $transaction->currency,
                 'order_id' => $order->uuid,
                 'customer_email' => $order->email,
+                'customer_full_name' => $customerFullName,
                 'return_url' => $this->getReturnUrl($transaction),
-                'cancel_url' => ''
+                'cancel_url' => '',
+                'order_items' => $orderItems
                 // 'cancel_url' => $this->getCancelUrl($transaction)
             ];
 
@@ -147,21 +173,90 @@ class Chip extends AbstractPaymentGateway
             $debug = $this->settings->isDebugEnabled() ? 'yes' : 'no';
             $chipApi = new ChipFluentCartApi($secretKey, $brandId, $logger, $debug);
 
+            // Build products array from order items
+            $products = [];
+            $orderItems = $paymentData['order_items'] ?? [];
+            
+            if (!empty($orderItems) && is_array($orderItems)) {
+                foreach ($orderItems as $item) {
+                    $productName = '';
+                    $productPrice = 0;
+                    $productQty = 1;
+
+                    // Handle different item structures
+                    if (is_object($item)) {
+                        $productName = $item->item_name ?? $item->title ?? $item->name ?? '';
+                        // Get unit price (if line_total exists, divide by quantity to get unit price)
+                        if (isset($item->line_total) && isset($item->quantity)) {
+                            $productPrice = (int) (($item->line_total / $item->quantity) * 100);
+                        } elseif (isset($item->line_total) && isset($item->qty)) {
+                            $productPrice = (int) (($item->line_total / $item->qty) * 100);
+                        } elseif (isset($item->price)) {
+                            $productPrice = (int) ($item->price * 100);
+                        } else {
+                            $productPrice = 0;
+                        }
+                        $productQty = $item->quantity ?? $item->qty ?? 1;
+                    } elseif (is_array($item)) {
+                        $productName = $item['item_name'] ?? $item['title'] ?? $item['name'] ?? '';
+                        // Get unit price (if line_total exists, divide by quantity to get unit price)
+                        if (isset($item['line_total']) && isset($item['quantity'])) {
+                            $productPrice = (int) (($item['line_total'] / $item['quantity']) * 100);
+                        } elseif (isset($item['line_total']) && isset($item['qty'])) {
+                            $productPrice = (int) (($item['line_total'] / $item['qty']) * 100);
+                        } elseif (isset($item['price'])) {
+                            $productPrice = (int) ($item['price'] * 100);
+                        } else {
+                            $productPrice = 0;
+                        }
+                        $productQty = $item['quantity'] ?? $item['qty'] ?? 1;
+                    }
+
+                    if (!empty($productName)) {
+                        $products[] = [
+                            'name' => $productName,
+                            'price' => $productPrice,
+                            'qty' => (int) $productQty
+                        ];
+                    }
+                }
+            }
+
+            // If no products found, create a default product entry
+            if (empty($products)) {
+                $products[] = [
+                    'name' => __('Order', 'chip-for-fluentcart') . ' #' . $paymentData['order_id'],
+                    'price' => (int) ($paymentData['amount'] * 100),
+                    'qty' => 1
+                ];
+            }
+
             // Prepare CHIP API parameters
             $chipParams = [
                 'brand_id' => $brandId,
-                'amount' => (int) $paymentData['amount'],
-                'currency' => $paymentData['currency'],
+                'total_override' => (int) ($paymentData['amount'] * 100),
                 'reference' => $paymentData['order_id'],
                 'success_redirect' => $paymentData['return_url'],
                 'failure_redirect' => $paymentData['cancel_url'] ?: $paymentData['return_url'],
+                'purchase' => [
+                    'currency' => $paymentData['currency'],
+                    'products' => $products
+                ]
             ];
 
-            // Add customer email if available
-            if (!empty($paymentData['customer_email'])) {
-                $chipParams['client'] = [
-                    'email' => $paymentData['customer_email']
-                ];
+            // Add customer information if available
+            if (!empty($paymentData['customer_email']) || !empty($paymentData['customer_full_name'])) {
+                $chipParams['client'] = [];
+                
+                // Add email
+                if (!empty($paymentData['customer_email'])) {
+                    $chipParams['client']['email'] = $paymentData['customer_email'];
+                }
+                
+                // Add full name
+                if (!empty($paymentData['customer_full_name'])) {
+                    $chipParams['client']['full_name'] = $paymentData['customer_full_name'];
+                }
             }
 
             // Add email fallback if configured
