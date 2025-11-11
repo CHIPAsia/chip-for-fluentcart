@@ -10,6 +10,7 @@
  * License URI: https://www.gnu.org/licenses/gpl-3.0.html
  * Text Domain: chip-for-fluentcart
  * Domain Path: /languages
+ * Reference: https://dev.fluentcart.com/modules/payment-methods
  */
 // If this file is called directly, abort.
 if ( ! defined( 'WPINC' ) ) {
@@ -56,6 +57,8 @@ require plugin_dir_path( __FILE__ ) . 'includes/class-chip-for-fluentcart.php';
  */
 add_action('fluent_cart/init', function($app) {
 	// Include CHIP payment gateway classes
+	require_once plugin_dir_path( __FILE__ ) . 'includes/ChipLogger.php';
+	require_once plugin_dir_path( __FILE__ ) . 'includes/ChipFluentCartApi.php';
 	require_once plugin_dir_path( __FILE__ ) . 'includes/Chip.php';
 	require_once plugin_dir_path( __FILE__ ) . 'includes/ChipHandler.php';
 	require_once plugin_dir_path( __FILE__ ) . 'includes/ChipSettingsBase.php';

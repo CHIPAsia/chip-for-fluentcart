@@ -121,9 +121,6 @@ class Chip extends AbstractPaymentGateway
      */
     protected function processPayment($paymentData)
     {
-        // TODO: Implement CHIP API payment processing
-        // This should call CHIP API to create a payment and return the redirect URL
-        
         try {
             // Validate settings
             $settings = $this->settings->get();
@@ -134,15 +131,92 @@ class Chip extends AbstractPaymentGateway
                 ];
             }
 
-            // TODO: Make API call to CHIP
-            // Example structure:
-            // $chipApi = new ChipApi($settings);
-            // $response = $chipApi->createPayment($paymentData);
+            // Validate required settings
+            $secretKey = $settings['secret_key'] ?? '';
+            $brandId = $settings['brand_id'] ?? '';
             
-            // For now, return a placeholder structure
+            if (empty($secretKey) || empty($brandId)) {
+                return [
+                    'success' => false,
+                    'error_message' => __('CHIP API credentials are not configured', 'chip-for-fluentcart')
+                ];
+            }
+
+            // Initialize logger and API
+            $logger = new ChipLogger();
+            $debug = $this->settings->isDebugEnabled() ? 'yes' : 'no';
+            $chipApi = new ChipFluentCartApi($secretKey, $brandId, $logger, $debug);
+
+            // Prepare CHIP API parameters
+            $chipParams = [
+                'brand_id' => $brandId,
+                'amount' => (int) $paymentData['amount'],
+                'currency' => $paymentData['currency'],
+                'reference' => $paymentData['order_id'],
+                'success_redirect' => $paymentData['return_url'],
+                'failure_redirect' => $paymentData['cancel_url'] ?: $paymentData['return_url'],
+            ];
+
+            // Add customer email if available
+            if (!empty($paymentData['customer_email'])) {
+                $chipParams['client'] = [
+                    'email' => $paymentData['customer_email']
+                ];
+            }
+
+            // Add email fallback if configured
+            $emailFallback = $this->settings->getEmailFallback();
+            if (!empty($emailFallback)) {
+                if (!isset($chipParams['client'])) {
+                    $chipParams['client'] = [];
+                }
+                $chipParams['client']['email'] = $emailFallback;
+            }
+
+            // Add payment method whitelist if configured
+            $paymentMethodWhitelist = $this->settings->getPaymentMethodWhitelist();
+            if (!empty($paymentMethodWhitelist) && is_array($paymentMethodWhitelist)) {
+                $chipParams['payment_method_whitelist'] = $paymentMethodWhitelist;
+            }
+
+            // Create payment via CHIP API
+            $response = $chipApi->create_payment($chipParams);
+
+            // Check for errors
+            if ($response === null) {
+                return [
+                    'success' => false,
+                    'error_message' => __('Failed to create payment. Please try again.', 'chip-for-fluentcart')
+                ];
+            }
+
+            // Check for __all__ error key
+            if (isset($response['__all__']) && is_array($response['__all__'])) {
+                $errorMessages = array_filter($response['__all__'], function($error) {
+                    return !empty($error);
+                });
+                
+                if (!empty($errorMessages)) {
+                    return [
+                        'success' => false,
+                        'error_message' => implode(' ', $errorMessages)
+                    ];
+                }
+            }
+
+            // Check for checkout_url and id in response
+            if (isset($response['checkout_url']) && isset($response['id'])) {
+                return [
+                    'success' => true,
+                    'redirect_url' => $response['checkout_url'],
+                    'payment_id' => $response['id']
+                ];
+            }
+
+            // If we reach here, response structure is unexpected
             return [
                 'success' => false,
-                'error_message' => __('CHIP payment processing not yet implemented', 'chip-for-fluentcart')
+                'error_message' => __('Unexpected response from payment gateway', 'chip-for-fluentcart')
             ];
 
         } catch (\Exception $e) {
