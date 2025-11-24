@@ -27,6 +27,9 @@ class Chip extends AbstractPaymentGateway
 
     public BaseGatewaySettings $settings;
 
+    const REDIRECT_KEY = 'chip-for-fluentcart-redirect';
+    const REDIRECT_PASSPHRASE_OPTION = 'chip-for-fluentcart-redirect-passphrase';
+
     public function __construct()
     {
         parent::__construct(new ChipSettingsBase());
@@ -39,6 +42,9 @@ class Chip extends AbstractPaymentGateway
         // Register webhook handlers
         add_action('wp_ajax_chip_webhook', [$this, 'handleWebhook']);
         add_action('wp_ajax_nopriv_chip_webhook', [$this, 'handleWebhook']);
+        
+        // Register init redirect handler using init hook (not admin-ajax)
+        add_action('init', [$this, 'handleInitRedirect']);
         
         // Register settings filter
         add_filter('fluent_cart/payment_methods/chip_settings', [$this, 'getSettings']);
@@ -98,15 +104,20 @@ class Chip extends AbstractPaymentGateway
                 'customer_email' => $order->email,
                 'customer_full_name' => $customerFullName,
                 'return_url' => $this->getReturnUrl($transaction),
-                'cancel_url' => '',
-                'order_items' => $orderItems
-                // 'cancel_url' => $this->getCancelUrl($transaction)
+                'order_items' => $orderItems,
+                'cancel_url' => $this->getCancelUrl($transaction),
+                'transaction_uuid' => $transaction->uuid
             ];
 
             // Process payment with gateway API
             $result = $this->processPayment($paymentData);
 
             if ($result['success']) {
+                // Store purchase ID (payment_id) in transaction metadata for later reference
+                if (!empty($result['payment_id'])) {
+                    $this->storePurchaseId($transaction, $result['payment_id']);
+                }
+
                 return [
                     'status' => 'success',
                     'message' => __('Order has been placed successfully', 'chip-for-fluentcart'),
@@ -139,6 +150,132 @@ class Chip extends AbstractPaymentGateway
     {
         $paymentHelper = new \FluentCart\App\Services\Payments\PaymentHelper('chip');
         return $paymentHelper->successUrl($transaction->uuid);
+    }
+
+    /**
+     * Get cancel URL for cancelled payment
+     *
+     * @since    1.0.0
+     * @param    object    $transaction    Transaction object
+     * @return   string                     Cancel URL
+     */
+    protected function getCancelUrl($transaction)
+    {
+        $paymentHelper = new \FluentCart\App\Services\Payments\PaymentHelper('chip');
+        return $paymentHelper->cancelUrl($transaction->uuid);
+    }
+
+    /**
+     * Get init URL for payment status check
+     * Uses a custom endpoint with passphrase for security (not admin-ajax)
+     *
+     * @since    1.0.0
+     * @param    object    $transaction    Transaction object
+     * @return   string                     Init URL
+     */
+    protected function getInitUrl($transaction)
+    {
+        // Get or generate passphrase for security
+        $passphrase = get_option(self::REDIRECT_PASSPHRASE_OPTION, false);
+        if (!$passphrase) {
+            $passphrase = md5(site_url() . time() . wp_salt());
+            update_option(self::REDIRECT_PASSPHRASE_OPTION, $passphrase);
+        }
+
+        $params = [
+            self::REDIRECT_KEY => $passphrase,
+            'transaction_uuid' => $transaction->uuid
+        ];
+
+        return add_query_arg($params, site_url('/'));
+    }
+
+    /**
+     * Handle init redirect - check order status and redirect accordingly
+     * Uses init hook instead of admin-ajax to avoid wp-admin access issues
+     *
+     * @since    1.0.0
+     */
+    public function handleInitRedirect()
+    {
+        // Check if this is a redirect request
+        if (!isset($_GET[self::REDIRECT_KEY])) {
+            return;
+        }
+
+        // Verify passphrase
+        $passphrase = get_option(self::REDIRECT_PASSPHRASE_OPTION, false);
+        if (!$passphrase) {
+            return;
+        }
+
+        if ($_GET[self::REDIRECT_KEY] !== $passphrase) {
+            status_header(403);
+            exit(__('Invalid redirect passphrase', 'chip-for-fluentcart'));
+        }
+
+        // Get transaction UUID
+        $transactionUuid = isset($_GET['transaction_uuid']) ? sanitize_text_field($_GET['transaction_uuid']) : '';
+        
+        if (empty($transactionUuid)) {
+            status_header(400);
+            exit(__('Invalid transaction', 'chip-for-fluentcart'));
+        }
+
+        // Get transaction by UUID
+        $transaction = \FluentCart\App\Models\Transaction::where('uuid', $transactionUuid)->first();
+        
+        if (!$transaction) {
+            status_header(404);
+            exit(__('Transaction not found', 'chip-for-fluentcart'));
+        }
+
+        // Get order from transaction
+        $order = OrderResource::getQuery()->find($transaction->order_id);
+        
+        if (!$order) {
+            status_header(404);
+            exit(__('Order not found', 'chip-for-fluentcart'));
+        }
+
+        // Small delay to allow webhook to process payment status update
+        // This ensures we check the most up-to-date order status
+        usleep(500000); // 0.5 second delay
+        
+        // Refresh order data to get latest status (in case webhook updated it)
+        $order = OrderResource::getQuery()->find($transaction->order_id);
+
+        // Check if order status indicates payment is completed
+        // Order is considered paid if status is PROCESSING or COMPLETED
+        $paidStatuses = [Status::ORDER_PROCESSING, Status::ORDER_COMPLETED];
+        $isPaid = in_array($order->status, $paidStatuses);
+
+        if ($isPaid) {
+            // Order has been paid (possibly updated by webhook), redirect to success URL
+            $returnUrl = $this->getReturnUrl($transaction);
+            wp_safe_redirect($returnUrl);
+            exit;
+        } else {
+            // Order has not been paid, check API one-time to get latest payment status
+            $purchaseId = $this->getPurchaseId($transaction);
+            
+            if ($purchaseId) {
+                // Call API to check latest payment status
+                $paymentStatus = $this->checkPaymentStatus($purchaseId);
+                
+                if ($paymentStatus === 'paid') {
+                    // Payment is actually paid, redirect to success URL
+                    $returnUrl = $this->getReturnUrl($transaction);
+                    wp_safe_redirect($returnUrl);
+                    exit;
+                }
+            }
+            
+            // Payment is not paid, redirect to cancel URL
+            $cancelUrl = $this->getCancelUrl($transaction);
+            wp_safe_redirect($cancelUrl);
+            exit;
+        }
     }
 
     /**
@@ -234,13 +371,20 @@ class Chip extends AbstractPaymentGateway
                 ];
             }
 
+            // Get init URL for status check before redirecting
+            // This will redirect to a temporary page that checks order status
+            // before redirecting to the final success or cancel URL
+            $transactionUuid = $paymentData['transaction_uuid'] ?? $paymentData['order_id'];
+            $initUrl = $this->getInitUrl((object)['uuid' => $transactionUuid]);
+            
             // Prepare CHIP API parameters
             $chipParams = [
                 'brand_id' => $brandId,
                 'total_override' => (int) ($paymentData['amount'] * 100),
                 'reference' => $paymentData['order_id'],
-                'success_redirect' => $paymentData['return_url'],
-                'failure_redirect' => $paymentData['cancel_url'] ?: $paymentData['return_url'],
+                'success_redirect' => $initUrl,
+                'failure_redirect' => $paymentData['cancel_url'],
+                'cancel_redirect' => $paymentData['cancel_url'],
                 'send_receipt' => false,
                 'creator_agent' => 'FluentCart v' . FLUENTCART_VERSION,
                 // TODO: Add creator agent
@@ -738,6 +882,156 @@ class Chip extends AbstractPaymentGateway
             'currency' => $order->currency,
             'status' => $order->status
         ];
+    }
+
+    /**
+     * Store purchase ID in transaction metadata
+     *
+     * @since    1.0.0
+     * @param    object    $transaction    Transaction object
+     * @param    string    $purchaseId     CHIP purchase ID
+     */
+    protected function storePurchaseId($transaction, $purchaseId)
+    {
+        if (!$transaction || !$purchaseId) {
+            return;
+        }
+
+        // Store purchase ID in transaction metadata
+        // Try different methods depending on how FluentCart stores transaction metadata
+        if (method_exists($transaction, 'updateMeta')) {
+            $transaction->updateMeta('_chip_purchase_id', $purchaseId);
+        } elseif (method_exists($transaction, 'setMeta')) {
+            $transaction->setMeta('_chip_purchase_id', $purchaseId);
+        } elseif (property_exists($transaction, 'id') && $transaction->id) {
+            // Fallback to WordPress post meta if transaction has an ID
+            update_post_meta($transaction->id, '_chip_purchase_id', $purchaseId);
+        } else {
+            // Store in a custom property if available
+            $transaction->chip_purchase_id = $purchaseId;
+            if (method_exists($transaction, 'save')) {
+                $transaction->save();
+            }
+        }
+
+        // Also store in order metadata as backup (using transaction UUID as key)
+        if (property_exists($transaction, 'order_id') && $transaction->order_id) {
+            $order = OrderResource::getQuery()->find($transaction->order_id);
+            if ($order) {
+                // Store with transaction UUID as part of the key for uniqueness
+                $metaKey = '_chip_purchase_id_' . $transaction->uuid;
+                if (method_exists($order, 'updateMeta')) {
+                    $order->updateMeta($metaKey, $purchaseId);
+                } elseif (method_exists($order, 'setMeta')) {
+                    $order->setMeta($metaKey, $purchaseId);
+                } elseif (property_exists($order, 'id') && $order->id) {
+                    update_post_meta($order->id, $metaKey, $purchaseId);
+                }
+            }
+        }
+    }
+
+    /**
+     * Get purchase ID from transaction metadata
+     *
+     * @since    1.0.0
+     * @param    object    $transaction    Transaction object
+     * @return   string|null                CHIP purchase ID or null if not found
+     */
+    protected function getPurchaseId($transaction)
+    {
+        if (!$transaction) {
+            return null;
+        }
+
+        // Try different methods to retrieve purchase ID from transaction
+        if (method_exists($transaction, 'getMeta')) {
+            $purchaseId = $transaction->getMeta('_chip_purchase_id');
+            if ($purchaseId) {
+                return $purchaseId;
+            }
+        } elseif (method_exists($transaction, 'meta')) {
+            $meta = $transaction->meta();
+            if (isset($meta['_chip_purchase_id'])) {
+                return $meta['_chip_purchase_id'];
+            }
+        } elseif (property_exists($transaction, 'id') && $transaction->id) {
+            // Fallback to WordPress post meta if transaction has an ID
+            $purchaseId = get_post_meta($transaction->id, '_chip_purchase_id', true);
+            if ($purchaseId) {
+                return $purchaseId;
+            }
+        } elseif (property_exists($transaction, 'chip_purchase_id')) {
+            return $transaction->chip_purchase_id;
+        }
+
+        // Fallback: try to get from order metadata
+        if (property_exists($transaction, 'order_id') && $transaction->order_id) {
+            $order = OrderResource::getQuery()->find($transaction->order_id);
+            if ($order && property_exists($transaction, 'uuid')) {
+                $metaKey = '_chip_purchase_id_' . $transaction->uuid;
+                if (method_exists($order, 'getMeta')) {
+                    $purchaseId = $order->getMeta($metaKey);
+                    if ($purchaseId) {
+                        return $purchaseId;
+                    }
+                } elseif (method_exists($order, 'meta')) {
+                    $meta = $order->meta();
+                    if (isset($meta[$metaKey])) {
+                        return $meta[$metaKey];
+                    }
+                } elseif (property_exists($order, 'id') && $order->id) {
+                    $purchaseId = get_post_meta($order->id, $metaKey, true);
+                    if ($purchaseId) {
+                        return $purchaseId;
+                    }
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Check payment status via CHIP API
+     *
+     * @since    1.0.0
+     * @param    string    $purchaseId    CHIP purchase ID
+     * @return   string|null              Payment status ('paid', 'pending', 'failed', etc.) or null on error
+     */
+    protected function checkPaymentStatus($purchaseId)
+    {
+        if (empty($purchaseId)) {
+            return null;
+        }
+
+        try {
+            // Get settings
+            $settings = $this->settings->get();
+            $secretKey = $settings['secret_key'] ?? '';
+            $brandId = $settings['brand_id'] ?? '';
+
+            if (empty($secretKey) || empty($brandId)) {
+                return null;
+            }
+
+            // Initialize API
+            $logger = new ChipLogger();
+            $debug = $this->settings->isDebugEnabled() ? 'yes' : 'no';
+            $chipApi = new ChipFluentCartApi($secretKey, $brandId, $logger, $debug);
+
+            // Get payment status from API
+            $payment = $chipApi->get_payment($purchaseId);
+
+            if ($payment && isset($payment['status'])) {
+                return $payment['status'];
+            }
+
+            return null;
+        } catch (\Exception $e) {
+            // Log error but don't throw
+            return null;
+        }
     }
 }
 
