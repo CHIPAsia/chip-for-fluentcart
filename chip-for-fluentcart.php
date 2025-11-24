@@ -11,6 +11,7 @@
  * Text Domain: chip-for-fluentcart
  * Domain Path: /languages
  * Reference: https://dev.fluentcart.com/modules/payment-methods
+ * Reference: https://dev.fluentcart.com/payment-methods-integration/quick-implementation.html#step-4-create-javascript-file-for-frontend-checkout
  */
 // If this file is called directly, abort.
 if ( ! defined( 'WPINC' ) ) {
@@ -55,17 +56,24 @@ require plugin_dir_path( __FILE__ ) . 'includes/class-chip-for-fluentcart.php';
 /**
  * Register CHIP payment gateway with FluentCart
  */
-add_action('fluent_cart/init', function($app) {
+add_action('fluent_cart/register_payment_methods', function($app) {
+
+	if (!function_exists('fluent_cart_api')) {
+        return; // FluentCart not active
+    }
+	
 	// Include CHIP payment gateway classes
 	require_once plugin_dir_path( __FILE__ ) . 'includes/ChipLogger.php';
 	require_once plugin_dir_path( __FILE__ ) . 'includes/ChipFluentCartApi.php';
 	require_once plugin_dir_path( __FILE__ ) . 'includes/Chip.php';
 	require_once plugin_dir_path( __FILE__ ) . 'includes/ChipHandler.php';
 	require_once plugin_dir_path( __FILE__ ) . 'includes/ChipSettingsBase.php';
-	
-	// Register the gateway
-	$gatewayManager = \FluentCart\App\Modules\PaymentMethods\Core\GatewayManager::getInstance();
-	$gatewayManager->register('chip', new \FluentCart\App\Modules\PaymentMethods\Chip\Chip());
+
+	// Register your custom gateway
+    fluent_cart_api()->registerCustomPaymentMethod(
+        'chip', 
+        new \FluentCart\App\Modules\PaymentMethods\Chip\Chip()
+    );
 });
 
 /**

@@ -17,9 +17,20 @@ use FluentCart\Framework\Support\Arr;
 
 class Chip extends AbstractPaymentGateway
 {
-    public array $supportedFeatures = ['payment', 'refund', 'webhook'];
+    public array $supportedFeatures = [
+        'payment',
+        'refund',
+        'webhook',
+        // TODO: Add subscription support
+        // 'subscription'
+    ];
 
     public BaseGatewaySettings $settings;
+
+    public function __construct()
+    {
+        parent::__construct(new ChipSettingsBase());
+    }
 
     public function boot()
     {
@@ -39,22 +50,14 @@ class Chip extends AbstractPaymentGateway
             'title' => __('CHIP', 'chip-for-fluentcart'),
             'route' => 'chip',
             'slug' => 'chip',
-            'description' => esc_html__('Pay securely with CHIP payment gateway', 'chip-for-fluentcart'),
-            // TODO: Add logo and icon
-            'logo' => plugin_dir_url( dirname( __FILE__ ) ) . 'admin/images/chip-logo.svg',
-            'icon' => plugin_dir_url( dirname( __FILE__ ) ) . 'admin/images/chip-icon.svg',
+            'description' => esc_html__('CHIP - Pay securely with CHIP Collect. Accept FPX, Cards, E-Wallet, Duitnow QR.', 'chip-for-fluentcart'),
+            'logo' => plugin_dir_url( dirname( __FILE__ ) ) . 'admin/images/chip.svg',
+            'icon' => plugin_dir_url( dirname( __FILE__ ) ) . 'admin/images/chip.svg',
             'brand_color' => '#136196',
             'upcoming' => false,
             'status' => $this->settings->get('is_active') === 'yes',
             'supported_features' => $this->supportedFeatures,
         ];
-    }
-
-    public function __construct()
-    {
-        parent::__construct(
-            new ChipSettingsBase()
-        );
     }
 
     public function makePaymentFromPaymentInstance(PaymentInstance $paymentInstance)
@@ -238,6 +241,10 @@ class Chip extends AbstractPaymentGateway
                 'reference' => $paymentData['order_id'],
                 'success_redirect' => $paymentData['return_url'],
                 'failure_redirect' => $paymentData['cancel_url'] ?: $paymentData['return_url'],
+                'send_receipt' => false,
+                'creator_agent' => 'FluentCart v' . FLUENTCART_VERSION,
+                // TODO: Add creator agent
+                // 'platform' => 'fluentcart',
                 'purchase' => [
                     'currency' => $paymentData['currency'],
                     'products' => $products
@@ -391,6 +398,7 @@ class Chip extends AbstractPaymentGateway
             [
                 'handle' => 'fluent-cart-checkout-handler-chip',
                 'src' => plugin_dir_url( dirname( __FILE__ ) ) . 'public/js/chip-checkout.js',
+                'version' => CHIP_FOR_FLUENTCART_VERSION,
             ]
         ];
     }
@@ -400,7 +408,7 @@ class Chip extends AbstractPaymentGateway
         return [
             'fct_chip_data' => [
                 'translations' => [
-                    'Pay securely with CHIP payment gateway' => __('Pay securely with CHIP payment gateway', 'chip-for-fluentcart'),
+                    'CHIP - Pay securely with CHIP Collect. Accept FPX, Cards, E-Wallet, Duitnow QR.' => __('CHIP - Pay securely with CHIP Collect. Accept FPX, Cards, E-Wallet, Duitnow QR.', 'chip-for-fluentcart'),
                 ]
             ]
         ];
