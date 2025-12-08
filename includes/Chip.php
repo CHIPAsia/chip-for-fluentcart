@@ -32,6 +32,7 @@ class Chip extends AbstractPaymentGateway
 
     const REDIRECT_KEY = 'chip-for-fluentcart-redirect';
     const REDIRECT_PASSPHRASE_OPTION = 'chip-for-fluentcart-redirect-passphrase';
+    const PUBLIC_KEY_OPTION = 'chip-for-fluentcart-public-key';
 
     public function __construct()
     {
@@ -42,10 +43,7 @@ class Chip extends AbstractPaymentGateway
     {
         add_action('fluent_cart/payment_paid', [$this, 'handlePaymentPaid'], 10, 1);
         
-        // Register webhook handlers
-        add_action('wp_ajax_chip_webhook', [$this, 'handleWebhook']);
-        add_action('wp_ajax_nopriv_chip_webhook', [$this, 'handleWebhook']);
-        
+
         // Register settings filter
         add_filter('fluent_cart/payment_methods/chip_settings', [$this, 'getSettings']);
     }
@@ -372,12 +370,19 @@ class Chip extends AbstractPaymentGateway
             $transactionUuid = $paymentData['transaction_uuid'] ?? $paymentData['order_id'];
             $initUrl = $this->getInitUrl((object)['uuid' => $transactionUuid]);
             
+            // Get callback URL using FluentCart's IPN listener
+            $callbackUrl = add_query_arg([
+                'fluent-cart' => 'fct_payment_listener_ipn',
+                'method' => 'chip'
+            ], site_url('/'));
+            
             // Prepare CHIP API parameters
             $chipParams = [
                 'brand_id' => $brandId,
                 'total_override' => (int) ($paymentData['amount'] * 100),
                 'reference' => $paymentData['order_id'],
                 'success_redirect' => $initUrl,
+                'success_callback' => $callbackUrl,
                 'failure_redirect' => $paymentData['cancel_url'],
                 'cancel_redirect' => $paymentData['cancel_url'],
                 'send_receipt' => false,
@@ -674,9 +679,57 @@ class Chip extends AbstractPaymentGateway
 
     public function handleIPN()
     {
-        $webhookData = $this->getWebhookData();
+        // Get raw JSON input directly
+        $rawInput = file_get_contents('php://input');
+        
+        if (empty($rawInput)) {
+            http_response_code(400);
+            exit('Empty request body');
+        }
 
-        if (!$this->verifyWebhookSignature($webhookData)) {
+        // Decode JSON to get brand_id first
+        $webhookData = json_decode($rawInput, true);
+        
+        if (json_last_error() !== JSON_ERROR_NONE || empty($webhookData)) {
+            http_response_code(400);
+            exit('Invalid JSON');
+        }
+
+        // Get brand_id from the webhook data
+        $webhookBrandId = $webhookData['brand_id'] ?? '';
+        
+        if (empty($webhookBrandId)) {
+            http_response_code(400);
+            exit('Missing brand_id');
+        }
+
+        // Get settings and verify brand_id matches
+        $settings = $this->settings->get();
+        $configuredBrandId = $settings['brand_id'] ?? '';
+        
+        if ($webhookBrandId !== $configuredBrandId) {
+            http_response_code(400);
+            exit('Brand ID mismatch');
+        }
+
+        // Get signature from headers
+        $signature = isset($_SERVER['HTTP_X_SIGNATURE']) ? $_SERVER['HTTP_X_SIGNATURE'] : '';
+        
+        if (empty($signature)) {
+            http_response_code(400);
+            exit('Missing signature');
+        }
+
+        // Get public key for signature verification
+        $publicKey = $this->getPublicKey($configuredBrandId);
+        
+        if (empty($publicKey)) {
+            http_response_code(500);
+            exit('Failed to get public key');
+        }
+
+        // Verify signature using public key
+        if (!$this->verifySignature($rawInput, $signature, $publicKey)) {
             http_response_code(400);
             exit('Invalid signature');
         }
@@ -688,62 +741,72 @@ class Chip extends AbstractPaymentGateway
     }
 
     /**
-     * Get webhook data from JSON body
+     * Get public key from CHIP API (cached per brand_id)
      *
      * @since    1.0.0
-     * @return   array    Webhook data
+     * @param    string    $brandId    Brand ID
+     * @return   string|null           Public key or null on failure
      */
-    protected function getWebhookData()
+    protected function getPublicKey($brandId)
     {
-        // Get raw JSON input
-        $rawInput = file_get_contents('php://input');
+        // Get stored public key data
+        $storedData = get_option(self::PUBLIC_KEY_OPTION, []);
         
-        // Decode JSON
-        $webhookData = json_decode($rawInput, true);
-        
-        if (json_last_error() !== JSON_ERROR_NONE) {
-            return [];
+        // Check if we have a cached public key for this brand_id
+        if (!empty($storedData['brand_id']) && $storedData['brand_id'] === $brandId && !empty($storedData['public_key'])) {
+            return $storedData['public_key'];
         }
 
-        return $webhookData;
+        // Fetch public key from API
+        $settings = $this->settings->get();
+        $secretKey = $settings['secret_key'] ?? '';
+        
+        if (empty($secretKey)) {
+            return null;
+        }
+
+        $logger = new ChipLogger();
+        $debug = $this->settings->isDebugEnabled() ? 'yes' : 'no';
+        $chipApi = new ChipFluentCartApi($secretKey, $brandId, $logger, $debug);
+        
+        $publicKeyResponse = $chipApi->public_key();
+        
+        if (empty($publicKeyResponse)) {
+            return null;
+        }
+
+        // Replace escaped newlines with actual newlines
+        $publicKey = str_replace('\n', "\n", $publicKeyResponse);
+
+        // Store the public key mapped to brand_id
+        update_option(self::PUBLIC_KEY_OPTION, [
+            'brand_id' => $brandId,
+            'public_key' => $publicKey
+        ]);
+
+        return $publicKey;
     }
 
     /**
-     * Verify webhook signature from CHIP
+     * Verify signature using public key
      *
      * @since    1.0.0
-     * @param    array    $webhookData    Webhook data
-     * @return   bool                      True if signature is valid
+     * @param    string    $rawInput    Raw input data
+     * @param    string    $signature   Signature from header
+     * @param    string    $publicKey   Public key for verification
+     * @return   bool                   True if signature is valid
      */
-    protected function verifyWebhookSignature($webhookData)
+    protected function verifySignature($rawInput, $signature, $publicKey)
     {
-        // TODO: Implement CHIP webhook signature verification
-        // CHIP typically sends a signature header that needs to be verified
-        
-        $settings = $this->settings->get();
-        $secretKey = $settings['secret_key'] ?? '';
+        // Verify using openssl
+        $result = openssl_verify(
+            $rawInput,
+            $signature,
+            $publicKey,
+            OPENSSL_ALGO_SHA256
+        );
 
-        if (empty($secretKey)) {
-            return false;
-        }
-
-        // Get signature from headers
-        $signature = isset($_SERVER['HTTP_X_SIGNATURE']) ? $_SERVER['HTTP_X_SIGNATURE'] : '';
-        
-        if (empty($signature)) {
-            return false;
-        }
-
-        // Get raw input for signature verification
-        $rawInput = file_get_contents('php://input');
-        
-        // TODO: Implement actual CHIP signature verification algorithm
-        // This typically involves creating a hash of the payload with the secret key
-        // Example: $expectedSignature = hash_hmac('sha256', $rawInput, $secretKey);
-        // return hash_equals($expectedSignature, $signature);
-        
-        // For now, return true (implement proper verification)
-        return true;
+        return $result === 1;
     }
 
     /**
@@ -762,8 +825,7 @@ class Chip extends AbstractPaymentGateway
         }
 
         // Extract relevant data from webhook
-        $eventType = $webhookData['event'] ?? '';
-        $paymentData = $webhookData['data'] ?? [];
+        $eventType = $webhookData['event_type'] ?? '';
         $orderId = $paymentData['order_id'] ?? $paymentData['reference'] ?? '';
 
         // Get order from webhook data
@@ -775,36 +837,16 @@ class Chip extends AbstractPaymentGateway
 
         // Process based on event type
         switch ($eventType) {
-            case 'payment.success':
-            case 'payment.completed':
+            case 'purchase.paid':
+            case 'purchase.settled':
                 $this->updateOrderStatus($order, Status::ORDER_PROCESSING);
                 break;
-            
-            case 'payment.failed':
-            case 'payment.cancelled':
-                $this->updateOrderStatus($order, Status::ORDER_FAILED);
-                break;
-            
-            case 'payment.refunded':
-                // TODO: Handle refund
-                break;
-            
             default:
                 // Log unknown event type
                 break;
         }
     }
 
-    /**
-     * Handle webhook requests from CHIP
-     *
-     * @since    1.0.0
-     */
-    public function handleWebhook()
-    {
-        // TODO: Implement webhook handler for CHIP
-        // This method will process webhook callbacks from CHIP payment gateway
-    }
 
     /**
      * Get order from webhook data
