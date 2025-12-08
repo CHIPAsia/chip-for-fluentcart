@@ -253,6 +253,7 @@ class Chip extends AbstractPaymentGateway
                     $orderTransaction->fill([
                         'status' => Status::TRANSACTION_SUCCEEDED,
                         'chip_purchase_id' => $purchaseId,
+                        'vendor_charge_id' => $purchaseId,
                     ]);
                     $orderTransaction->save();
                     (new StatusHelper($order))->syncOrderStatuses($orderTransaction);
@@ -940,6 +941,7 @@ class Chip extends AbstractPaymentGateway
         $orderTransaction->fill([
             'status' => Status::TRANSACTION_SUCCEEDED,
             'chip_purchase_id' => $purchaseId,
+            'vendor_charge_id' => $purchaseId,
         ]);
         $orderTransaction->save();
 
