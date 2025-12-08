@@ -669,9 +669,73 @@ class Chip extends AbstractPaymentGateway
         $this->updateOrderDataByOrder($order, $updateData);
     }
 
-    public function refund($refundInfo, $orderData, $transaction)
+    public function processRefund($transaction, $amount, $args)
     {
-        // TODO: Implement refund process for CHIP
+        if (!$amount) {
+            return new \WP_Error(
+                'fluent_cart_chip_refund_error',
+                __('Refund amount is required.', 'chip-for-fluentcart')
+            );
+        }
+
+        // Get purchase ID from transaction
+        $purchaseId = $transaction->vendor_charge_id;
+
+        if (!$purchaseId) {
+            return new \WP_Error(
+                'fluent_cart_chip_refund_error',
+                __('Invalid transaction ID for refund.', 'chip-for-fluentcart')
+            );
+        }
+
+        // Get settings
+        $settings = $this->settings->get();
+        $secretKey = $settings['secret_key'] ?? '';
+        $brandId = $settings['brand_id'] ?? '';
+
+        if (empty($secretKey) || empty($brandId)) {
+            return new \WP_Error(
+                'fluent_cart_chip_refund_error',
+                __('CHIP API credentials are not configured.', 'chip-for-fluentcart')
+            );
+        }
+
+        // Initialize API
+        $logger = new ChipLogger();
+        $debug = $this->settings->isDebugEnabled() ? 'yes' : 'no';
+        $chipApi = new ChipFluentCartApi($secretKey, $brandId, $logger, $debug);
+
+        // Prepare refund amount (convert to smallest currency unit - cents)
+        $refundAmount = (int) ($amount * 100);
+
+        // Prepare refund data
+        $refundData = [
+            'amount' => $refundAmount
+        ];
+
+        // Call CHIP API to process refund
+        $refunded = $chipApi->refund_payment($purchaseId, $refundData);
+
+        if (empty($refunded)) {
+            return new \WP_Error(
+                'fluent_cart_chip_refund_error',
+                __('Refund could not be processed. Please check your CHIP account.', 'chip-for-fluentcart')
+            );
+        }
+
+        // Check refund status
+        $status = $refunded['status'] ?? '';
+        $acceptedStatus = ['success', 'refunded'];
+
+        if (!in_array($status, $acceptedStatus)) {
+            return new \WP_Error(
+                'fluent_cart_chip_refund_error',
+                __('Refund could not be processed in CHIP. Please check your CHIP account.', 'chip-for-fluentcart')
+            );
+        }
+
+        // Return refund ID
+        return $refunded['id'] ?? $purchaseId;
     }
 
     public function webHookPaymentMethodName()
