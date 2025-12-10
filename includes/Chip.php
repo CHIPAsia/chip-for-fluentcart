@@ -458,12 +458,16 @@ class Chip extends AbstractPaymentGateway
 
             // Check for __all__ error key
             if (isset($response['__all__']) && is_array($response['__all__'])) {
-                $errorMessages = array_filter(
-                    $response['__all__'],
+                $errorMessages = array_map(
                     function ( $error ) {
-                        return ! empty( $error );
-                    }
+                        // Each error is an array with 'message' and 'code' keys
+                        return isset($error['message']) ? $error['message'] : '';
+                    },
+                    $response['__all__']
                 );
+                
+                // Filter out empty messages
+                $errorMessages = array_filter($errorMessages);
                 
                 if (!empty($errorMessages)) {
                     return [
