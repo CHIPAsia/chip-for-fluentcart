@@ -233,52 +233,60 @@ class Chip extends AbstractPaymentGateway
             exit( esc_html__( 'Order not found', 'chip-for-fluent-cart' ) );
         }
 
-        // Small delay to allow webhook to process payment status update
-        // This ensures we check the most up-to-date order status
-        usleep(500000); // 0.5 second delay
-        
-        // Refresh order data to get latest status (in case webhook updated it)
-        $order = OrderResource::getQuery()->find($orderTransaction->order_id);
+        // Acquire lock to prevent race condition with processWebhook
+        $this->acquireLock($order->id);
 
-        // Check if order status indicates payment is completed
-        // Order is considered paid if status is PROCESSING or COMPLETED
-        $paidStatuses = array( Status::ORDER_PROCESSING, Status::ORDER_COMPLETED );
-        $isPaid       = in_array( $order->status, $paidStatuses, true );
+        try {
+            // Refresh order data to get latest status (in case webhook updated it)
+            $order = OrderResource::getQuery()->find($orderTransaction->order_id);
 
-        if ($isPaid) {
-            // Order has been paid (possibly updated by webhook), redirect to success URL
-            $returnUrl = $this->getReturnUrl($orderTransaction);
-            wp_safe_redirect($returnUrl);
-            exit;
-        } else {
-            // Order has not been paid, check API one-time to get latest payment status
-            $purchaseId = $this->getPurchaseId($order);
-            
-            if ($purchaseId) {
-                // Call API to check latest payment status
-                $paymentStatus = $this->checkPaymentStatus($purchaseId);
+            // Check if order status indicates payment is completed
+            // Order is considered paid if status is PROCESSING or COMPLETED
+            $paidStatuses = array( Status::ORDER_PROCESSING, Status::ORDER_COMPLETED );
+            $isPaid       = in_array( $order->status, $paidStatuses, true );
+
+            if ($isPaid) {
+                // Order has been paid (possibly updated by webhook), redirect to success URL
+                $returnUrl = $this->getReturnUrl($orderTransaction);
+                $this->releaseLock($order->id);
+                wp_safe_redirect($returnUrl);
+                exit;
+            } else {
+                // Order has not been paid, check API one-time to get latest payment status
+                $purchaseId = $this->getPurchaseId($order);
                 
-                if ( 'paid' === $paymentStatus ) {
-                    // Payment is actually paid, sync order status
-                    $orderTransaction->fill([
-                        'status' => Status::TRANSACTION_SUCCEEDED,
-                        'chip_purchase_id' => $purchaseId,
-                        'vendor_charge_id' => $purchaseId,
-                    ]);
-                    $orderTransaction->save();
-                    (new StatusHelper($order))->syncOrderStatuses($orderTransaction);
+                if ($purchaseId) {
+                    // Call API to check latest payment status
+                    $paymentStatus = $this->checkPaymentStatus($purchaseId);
                     
-                    // Redirect to success URL
-                    $returnUrl = $this->getReturnUrl($orderTransaction);
-                    wp_safe_redirect($returnUrl);
-                    exit;
+                    if ( 'paid' === $paymentStatus ) {
+                        // Payment is actually paid, sync order status
+                        $orderTransaction->fill([
+                            'status' => Status::TRANSACTION_SUCCEEDED,
+                            'chip_purchase_id' => $purchaseId,
+                            'vendor_charge_id' => $purchaseId,
+                        ]);
+                        $orderTransaction->save();
+                        (new StatusHelper($order))->syncOrderStatuses($orderTransaction);
+                        
+                        // Redirect to success URL
+                        $returnUrl = $this->getReturnUrl($orderTransaction);
+                        $this->releaseLock($order->id);
+                        wp_safe_redirect($returnUrl);
+                        exit;
+                    }
                 }
+                
+                // Payment is not paid, redirect to cancel URL
+                $cancelUrl = self::getCancelUrl($orderTransaction);
+                $this->releaseLock($order->id);
+                wp_safe_redirect($cancelUrl);
+                exit;
             }
-            
-            // Payment is not paid, redirect to cancel URL
-            $cancelUrl = self::getCancelUrl($orderTransaction);
-            wp_safe_redirect($cancelUrl);
-            exit;
+        } catch (\Exception $e) {
+            // Release lock on exception
+            $this->releaseLock($order->id);
+            throw $e;
         }
     }
 
@@ -1046,22 +1054,33 @@ class Chip extends AbstractPaymentGateway
             return;
         }
 
-        // Check if already processed (order already in paid status).
-        $paidStatuses = array( Status::ORDER_PROCESSING, Status::ORDER_COMPLETED );
-        if ( in_array( $order->status, $paidStatuses, true ) ) {
-            return;
+        // Acquire lock to prevent race condition with handleInitRedirect
+        $this->acquireLock($order->id);
+
+        try {
+            // Re-fetch order after acquiring lock to get latest status
+            $order = Order::where('uuid', $orderUuid)->first();
+
+            // Check if already processed (order already in paid status).
+            $paidStatuses = array( Status::ORDER_PROCESSING, Status::ORDER_COMPLETED );
+            if ( in_array( $order->status, $paidStatuses, true ) ) {
+                return;
+            }
+
+            // Update transaction status
+            $orderTransaction->fill([
+                'status' => Status::TRANSACTION_SUCCEEDED,
+                'chip_purchase_id' => $purchaseId,
+                'vendor_charge_id' => $purchaseId,
+            ]);
+            $orderTransaction->save();
+
+            // Sync order statuses using StatusHelper
+            (new StatusHelper($order))->syncOrderStatuses($orderTransaction);
+        } finally {
+            // Always release lock
+            $this->releaseLock($order->id);
         }
-
-        // Update transaction status
-        $orderTransaction->fill([
-            'status' => Status::TRANSACTION_SUCCEEDED,
-            'chip_purchase_id' => $purchaseId,
-            'vendor_charge_id' => $purchaseId,
-        ]);
-        $orderTransaction->save();
-
-        // Sync order statuses using StatusHelper
-        (new StatusHelper($order))->syncOrderStatuses($orderTransaction);
     }
 
     /**
@@ -1191,6 +1210,92 @@ class Chip extends AbstractPaymentGateway
             // Log error but don't throw
             return null;
         }
+    }
+
+    /**
+     * Acquire database lock for payment processing
+     * Compatible with both MySQL and PostgreSQL
+     *
+     * @since    1.0.0
+     * @param    int|string    $orderId    Order ID for lock key
+     * @param    int           $timeout    Lock timeout in seconds (MySQL only)
+     * @return   bool                      True if lock acquired, false otherwise
+     */
+    protected function acquireLock($orderId, $timeout = 15)
+    {
+        global $wpdb;
+        
+        // Determine database type
+        if ($this->isPostgreSQL()) {
+            // PostgreSQL: Use advisory lock with numeric key
+            // Convert order ID to integer for pg_advisory_lock
+            $lockKey = abs(crc32('chip_payment_' . $orderId));
+            $result = $wpdb->get_var(
+                $wpdb->prepare("SELECT pg_advisory_lock(%d)", $lockKey)
+            );
+            return true; // pg_advisory_lock blocks until acquired
+        } else {
+            // MySQL: Use named lock with timeout
+            $lockName = 'chip_payment_' . $orderId;
+            $result = $wpdb->get_var(
+                $wpdb->prepare("SELECT GET_LOCK(%s, %d)", $lockName, $timeout)
+            );
+            return $result == 1;
+        }
+    }
+
+    /**
+     * Release database lock for payment processing
+     * Compatible with both MySQL and PostgreSQL
+     *
+     * @since    1.0.0
+     * @param    int|string    $orderId    Order ID for lock key
+     * @return   bool                      True if lock released, false otherwise
+     */
+    protected function releaseLock($orderId)
+    {
+        global $wpdb;
+        
+        // Determine database type
+        if ($this->isPostgreSQL()) {
+            // PostgreSQL: Release advisory lock
+            $lockKey = abs(crc32('chip_payment_' . $orderId));
+            $result = $wpdb->get_var(
+                $wpdb->prepare("SELECT pg_advisory_unlock(%d)", $lockKey)
+            );
+            return $result === 't' || $result === true || $result == 1;
+        } else {
+            // MySQL: Release named lock
+            $lockName = 'chip_payment_' . $orderId;
+            $result = $wpdb->get_var(
+                $wpdb->prepare("SELECT RELEASE_LOCK(%s)", $lockName)
+            );
+            return $result == 1;
+        }
+    }
+
+    /**
+     * Check if the database is PostgreSQL
+     *
+     * @since    1.0.0
+     * @return   bool    True if PostgreSQL, false otherwise (MySQL/MariaDB)
+     */
+    protected function isPostgreSQL()
+    {
+        global $wpdb;
+        
+        // Check if using PostgreSQL by examining the db server info
+        if (method_exists($wpdb, 'db_server_info')) {
+            $serverInfo = $wpdb->db_server_info();
+            return stripos($serverInfo, 'postgresql') !== false || stripos($serverInfo, 'pgsql') !== false;
+        }
+        
+        // Alternative: Check the database driver
+        if (defined('DB_DRIVER') && stripos(DB_DRIVER, 'pgsql') !== false) {
+            return true;
+        }
+        
+        return false;
     }
 }
 
