@@ -82,6 +82,7 @@ class Chip extends AbstractPaymentGateway
     {
         try {
             $order = $paymentInstance->order;
+            $customer = $order->customer;
             $transaction = $paymentInstance->transaction;
 
             // Get order items
@@ -93,27 +94,14 @@ class Chip extends AbstractPaymentGateway
             }
 
             // Get customer full name
-            $customerFullName = '';
-            if (isset($order->customer_first_name) || isset($order->customer_last_name)) {
-                $firstName = $order->customer_first_name ?? '';
-                $lastName = $order->customer_last_name ?? '';
-                $customerFullName = trim($firstName . ' ' . $lastName);
-            } elseif (isset($order->billing_first_name) || isset($order->billing_last_name)) {
-                $firstName = $order->billing_first_name ?? '';
-                $lastName = $order->billing_last_name ?? '';
-                $customerFullName = trim($firstName . ' ' . $lastName);
-            } elseif (isset($order->customer_name)) {
-                $customerFullName = $order->customer_name;
-            } elseif (isset($order->name)) {
-                $customerFullName = $order->name;
-            }
+            $customerFullName = trim($customer->first_name . ' ' . $customer->last_name);
 
             // Prepare payment data
             $paymentData = [
                 'amount' => $transaction->total,
                 'currency' => $transaction->currency,
                 'order_id' => $order->uuid,
-                'customer_email' => $order->email,
+                'customer_email' => $customer->email,
                 'customer_full_name' => $customerFullName,
                 'return_url' => $this->getReturnUrl($transaction),
                 'order_items' => $orderItems,
