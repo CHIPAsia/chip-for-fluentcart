@@ -17,7 +17,8 @@ jobs:
     - name: Generate zip
       run: |
         # Create zip file using git archive which automatically respects .gitignore
-        git archive --format=zip --output=chip-for-fluentcart.zip HEAD
+        # --prefix adds a folder inside the zip so it extracts properly
+        git archive --format=zip --prefix=chip-for-fluentcart/ --output=chip-for-fluentcart.zip HEAD
         
         echo "✅ Created chip-for-fluentcart.zip"
         ls -lh chip-for-fluentcart.zip
