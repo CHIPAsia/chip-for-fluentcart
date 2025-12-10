@@ -18,14 +18,14 @@ jobs:
       run: |
         # Create zip file using git archive which automatically respects .gitignore
         # --prefix adds a folder inside the zip so it extracts properly
-        git archive --format=zip --prefix=chip-for-fluentcart/ --output=chip-for-fluentcart.zip HEAD
+        git archive --format=zip --prefix=chip-for-fluent-cart/ --output=chip-for-fluent-cart.zip HEAD
         
-        echo "✅ Created chip-for-fluentcart.zip"
-        ls -lh chip-for-fluentcart.zip
+        echo "✅ Created chip-for-fluent-cart.zip"
+        ls -lh chip-for-fluent-cart.zip
 
     - name: Upload zip artifact
       uses: actions/upload-artifact@v4
       with:
-        name: chip-for-fluentcart
-        path: chip-for-fluentcart.zip
+        name: chip-for-fluent-cart
+        path: chip-for-fluent-cart.zip
         retention-days: 5

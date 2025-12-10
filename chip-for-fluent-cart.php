@@ -1,14 +1,14 @@
 <?php
 /**
- * Plugin Name: CHIP for FluentCart
+ * Plugin Name: CHIP for Fluent Cart
  * Plugin URI: https://www.chip-in.asia
- * Description: Integrate CHIP payment gateway with FluentCart for seamless payment processing.
+ * Description: Integrate CHIP payment gateway with Fluent Cart for seamless payment processing.
  * Version: 1.0.0
  * Author: CHIP IN SDN. BHD.
  * Author URI: https://www.chip-in.asia
  * License: GPLv3
  * License URI: https://www.gnu.org/licenses/gpl-3.0.html
- * Text Domain: chip-for-fluentcart
+ * Text Domain: chip-for-fluent-cart
  * Domain Path: /languages
  * Reference: https://dev.fluentcart.com/modules/payment-methods
  * Reference: https://dev.fluentcart.com/payment-methods-integration/quick-implementation.html#step-4-create-javascript-file-for-frontend-checkout
@@ -26,12 +26,12 @@ if ( ! defined( 'WPINC' ) ) {
 define( 'CHIP_FOR_FLUENTCART_VERSION', '1.0.0' );
 
 /**
- * Register CHIP payment gateway with FluentCart
+ * Register CHIP payment gateway with Fluent Cart
  */
 add_action('fluent_cart/register_payment_methods', function($app) {
 
 	if (!function_exists('fluent_cart_api')) {
-        return; // FluentCart not active
+        return; // Fluent Cart not active
     }
 	
 	// Include CHIP payment gateway classes
@@ -51,7 +51,7 @@ add_action('fluent_cart/register_payment_methods', function($app) {
  */
 add_action('init', function() {
 	if (!function_exists('fluent_cart_api')) {
-        return; // FluentCart not active
+        return; //Fluent Cart not active
     }
 	
 	// Get the CHIP payment gateway instance using GatewayManager
@@ -71,7 +71,7 @@ add_filter('plugin_action_links_' . plugin_basename(__FILE__), function($links) 
 	}
 
 	$settings_url = \FluentCart\App\Services\URL::getDashboardUrl('settings/payments/chip');
-	$settings_link = '<a href="' . esc_url($settings_url) . '">' . esc_html__('Settings', 'chip-for-fluentcart') . '</a>';
+	$settings_link = '<a href="' . esc_url($settings_url) . '">' . esc_html__('Settings', 'chip-for-fluent-cart') . '</a>';
 	
 	array_unshift($links, $settings_link);
 	

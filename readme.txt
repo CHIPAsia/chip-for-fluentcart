@@ -1,4 +1,4 @@
-=== CHIP for FluentCart ===
+=== CHIP for Fluent Cart ===
 
 Contributors: chipasia, wanzulnet
 Tags: chip, fluentcart, payment
@@ -21,9 +21,9 @@ Our aim is to help businesses streamline their financial processes, reduce opera
 
 With CHIP, you gain a financial partner committed to simplifying, digitizing, and enhancing your financial operations for ultimate success.
 
-This plugin will enable your FluentCart site to be integrated with CHIP as per documented in [API Documentation](https://docs.chip-in.asia).
+This plugin will enable your Fluent Cart site to be integrated with CHIP as per documented in [API Documentation](https://docs.chip-in.asia).
 
-The plugins do includes support for FluentCart Subscription products.
+The plugins do includes support for Fluent Cart Subscription products.
 
 == Screenshots ==
 
@@ -33,11 +33,11 @@ The plugins do includes support for FluentCart Subscription products.
 
 * CHIP payment page
 
-* FluentCart order received page
+* Fluent Cart order received page
 
-* FluentCart dashboard order page
+* Fluent Cart dashboard order page
 
-* FluentCart refund order
+* Fluent Cart refund order
 
 == Changelog ==
 
@@ -45,7 +45,7 @@ The plugins do includes support for FluentCart Subscription products.
 
 * Initial release
 
-[See changelog for all versions](https://raw.githubusercontent.com/CHIPAsia/chip-for-fluentcart/main/changelog.txt).
+[See changelog for all versions](https://raw.githubusercontent.com/CHIPAsia/chip-for-fluent-cart/main/changelog.txt).
 
 == Installation ==
 
@@ -54,7 +54,7 @@ The plugins do includes support for FluentCart Subscription products.
 * PHP 7.4 or greater is required
 * MySQL 5.6 or greater, OR MariaDB version 10.1 or greater, is required
 * WordPress 6.8 or higher
-* FluentCart plugin installed and activated
+* Fluent Cart plugin installed and activated
 
 = Automatic installation =
 
@@ -64,7 +64,7 @@ In the search field type "CHIP for FluentCart," then click "Search Plugins." Onc
 
 = Manual installation =
 
-Manual installation method requires downloading the CHIP for FluentCart plugin and uploading it to your web server via your favorite FTP application. The WordPress codex contains [instructions on how to do this here](https://wordpress.org/support/article/managing-plugins/#manual-plugin-installation).
+Manual installation method requires downloading the CHIP for Fluent Cart plugin and uploading it to your web server via your favorite FTP application. The WordPress codex contains [instructions on how to do this here](https://wordpress.org/support/article/managing-plugins/#manual-plugin-installation).
 
 = Updating =
 

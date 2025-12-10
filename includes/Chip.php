@@ -27,9 +27,9 @@ class Chip extends AbstractPaymentGateway
 
     public BaseGatewaySettings $settings;
 
-    const REDIRECT_KEY = 'chip-for-fluentcart-redirect';
-    const REDIRECT_PASSPHRASE_OPTION = 'chip-for-fluentcart-redirect-passphrase';
-    const PUBLIC_KEY_OPTION = 'chip-for-fluentcart-public-key';
+    const REDIRECT_KEY = 'chip-for-fluent-cart-redirect';
+    const REDIRECT_PASSPHRASE_OPTION = 'chip-for-fluent-cart-redirect-passphrase';
+    const PUBLIC_KEY_OPTION = 'chip-for-fluent-cart-public-key';
 
     public function __construct()
     {
@@ -58,10 +58,10 @@ class Chip extends AbstractPaymentGateway
     public function meta(): array
     {
         return [
-            'title' => __('CHIP', 'chip-for-fluentcart'),
+            'title' => __('CHIP', 'chip-for-fluent-cart'),
             'route' => 'chip',
             'slug' => 'chip',
-            'description' => esc_html__('CHIP - Pay securely with CHIP Collect. Accept FPX, Cards, E-Wallet, Duitnow QR.', 'chip-for-fluentcart'),
+            'description' => esc_html__('CHIP - Pay securely with CHIP Collect. Accept FPX, Cards, E-Wallet, Duitnow QR.', 'chip-for-fluent-cart'),
             'logo' => plugin_dir_url( __DIR__ ) . 'assets/logo.svg',
             'icon' => plugin_dir_url( __DIR__ ) . 'assets/logo.svg',
             'brand_color' => '#136196',
@@ -132,7 +132,7 @@ class Chip extends AbstractPaymentGateway
 
                 return [
                     'status' => 'success',
-                    'message' => __('Order has been placed successfully', 'chip-for-fluentcart'),
+                    'message' => __('Order has been placed successfully', 'chip-for-fluent-cart'),
                     'redirect_to' => $result['redirect_url'],
                     'payment_id' => $result['payment_id'] ?? null
                 ];
@@ -140,7 +140,7 @@ class Chip extends AbstractPaymentGateway
 
             return [
                 'status' => 'failed',
-                'message' => $result['error_message'] ?? __('Payment processing failed', 'chip-for-fluentcart')
+                'message' => $result['error_message'] ?? __('Payment processing failed', 'chip-for-fluent-cart')
             ];
 
         } catch (\Exception $e) {
@@ -212,7 +212,7 @@ class Chip extends AbstractPaymentGateway
         // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- This is a redirect callback from payment gateway.
         if ( $passphrase !== sanitize_text_field( wp_unslash( $_GET[ self::REDIRECT_KEY ] ) ) ) {
             status_header( 403 );
-            exit( esc_html__( 'Invalid redirect passphrase', 'chip-for-fluentcart' ) );
+            exit( esc_html__( 'Invalid redirect passphrase', 'chip-for-fluent-cart' ) );
         }
 
         // Get transaction UUID from URL.
@@ -221,7 +221,7 @@ class Chip extends AbstractPaymentGateway
         
         if ( empty( $transactionUuid ) ) {
             status_header( 400 );
-            exit( esc_html__( 'Invalid transaction UUID', 'chip-for-fluentcart' ) );
+            exit( esc_html__( 'Invalid transaction UUID', 'chip-for-fluent-cart' ) );
         }
 
         // Get order transaction by UUID using OrderTransaction model
@@ -229,7 +229,7 @@ class Chip extends AbstractPaymentGateway
         
         if ( ! $orderTransaction ) {
             status_header( 404 );
-            exit( esc_html__( 'Transaction not found', 'chip-for-fluentcart' ) );
+            exit( esc_html__( 'Transaction not found', 'chip-for-fluent-cart' ) );
         }
 
         // Get order from transaction
@@ -237,7 +237,7 @@ class Chip extends AbstractPaymentGateway
         
         if ( ! $order ) {
             status_header( 404 );
-            exit( esc_html__( 'Order not found', 'chip-for-fluentcart' ) );
+            exit( esc_html__( 'Order not found', 'chip-for-fluent-cart' ) );
         }
 
         // Small delay to allow webhook to process payment status update
@@ -304,7 +304,7 @@ class Chip extends AbstractPaymentGateway
             if ( 'yes' !== $settings['is_active'] ) {
                 return [
                     'success' => false,
-                    'error_message' => __('CHIP payment is not activated', 'chip-for-fluentcart')
+                    'error_message' => __('CHIP payment is not activated', 'chip-for-fluent-cart')
                 ];
             }
 
@@ -315,7 +315,7 @@ class Chip extends AbstractPaymentGateway
             if (empty($secretKey) || empty($brandId)) {
                 return [
                     'success' => false,
-                    'error_message' => __('CHIP API credentials are not configured', 'chip-for-fluentcart')
+                    'error_message' => __('CHIP API credentials are not configured', 'chip-for-fluent-cart')
                 ];
             }
 
@@ -376,7 +376,7 @@ class Chip extends AbstractPaymentGateway
             // If no products found, create a default product entry (amount already in cents)
             if (empty($products)) {
                 $products[] = [
-                    'name' => __('Order', 'chip-for-fluentcart') . ' #' . $paymentData['order_id'],
+                    'name' => __('Order', 'chip-for-fluent-cart') . ' #' . $paymentData['order_id'],
                     'price' => (int) $paymentData['amount'],
                     'qty' => 1
                 ];
@@ -452,7 +452,7 @@ class Chip extends AbstractPaymentGateway
             if ( null === $response ) {
                 return [
                     'success' => false,
-                    'error_message' => __('Failed to create payment. Please try again.', 'chip-for-fluentcart')
+                    'error_message' => __('Failed to create payment. Please try again.', 'chip-for-fluent-cart')
                 ];
             }
 
@@ -485,7 +485,7 @@ class Chip extends AbstractPaymentGateway
             // If we reach here, response structure is unexpected
             return [
                 'success' => false,
-                'error_message' => __('Unexpected response from payment gateway', 'chip-for-fluentcart')
+                'error_message' => __('Unexpected response from payment gateway', 'chip-for-fluent-cart')
             ];
 
         } catch (\Exception $e) {
@@ -526,8 +526,8 @@ class Chip extends AbstractPaymentGateway
             $order->save();
 
             $actionActivity = [
-                'title'   => __('Order status updated', 'chip-for-fluentcart'),
-                'content' => sprintf(__('Order status has been updated from %s to %s', 'chip-for-fluentcart'), $orderStatus, $order->status)
+                'title'   => __('Order status updated', 'chip-for-fluent-cart'),
+                'content' => sprintf(__('Order status has been updated from %s to %s', 'chip-for-fluent-cart'), $orderStatus, $order->status)
             ];
 
             ( new OrderStatusUpdated( $order, $orderStatus, 'completed', true, $actionActivity, 'order_status' ) )->dispatch();
@@ -606,7 +606,7 @@ class Chip extends AbstractPaymentGateway
         return [
             'fct_chip_data' => [
                 'translations' => [
-                    'CHIP - Pay securely with CHIP Collect. Accept FPX, Cards, E-Wallet, Duitnow QR.' => __('CHIP - Pay securely with CHIP Collect. Accept FPX, Cards, E-Wallet, Duitnow QR.', 'chip-for-fluentcart'),
+                    'CHIP - Pay securely with CHIP Collect. Accept FPX, Cards, E-Wallet, Duitnow QR.' => __('CHIP - Pay securely with CHIP Collect. Accept FPX, Cards, E-Wallet, Duitnow QR.', 'chip-for-fluent-cart'),
                 ]
             ]
         ];
@@ -629,36 +629,36 @@ class Chip extends AbstractPaymentGateway
                         "<div class='pt-4'>
                             <p>%s</p>
                         </div>",
-                        __('✅  CHIP is a secure payment gateway that allows customers to pay for their orders online. Configure your API credentials to enable CHIP payments.', 'chip-for-fluentcart')
+                        __('✅  CHIP is a secure payment gateway that allows customers to pay for their orders online. Configure your API credentials to enable CHIP payments.', 'chip-for-fluent-cart')
                     ),
                     [
                         'p' => [],
                         'div' => ['class' => true],
                         'i' => [],
                     ]),
-                'label' => __('Description', 'chip-for-fluentcart'),
+                'label' => __('Description', 'chip-for-fluent-cart'),
                 'type' => 'html_attr'
             ),
             'secret_key' => array(
                 'value' => $settings['secret_key'] ?? '',
-                'label' => __('Secret Key', 'chip-for-fluentcart'),
+                'label' => __('Secret Key', 'chip-for-fluent-cart'),
                 'type' => 'password',
                 'required' => true,
-                'description' => __('Your CHIP secret key. The payment mode (test/live) will be determined automatically based on this key.', 'chip-for-fluentcart')
+                'description' => __('Your CHIP secret key. The payment mode (test/live) will be determined automatically based on this key.', 'chip-for-fluent-cart')
             ),
             'brand_id' => array(
                 'value' => $settings['brand_id'] ?? '',
-                'label' => __('Brand ID', 'chip-for-fluentcart'),
+                'label' => __('Brand ID', 'chip-for-fluent-cart'),
                 'type' => 'text',
                 'required' => true,
-                'description' => __('Your CHIP Brand ID', 'chip-for-fluentcart')
+                'description' => __('Your CHIP Brand ID', 'chip-for-fluent-cart')
             ),
             'email_fallback' => array(
                 'value' => $settings['email_fallback'] ?? '',
-                'label' => __('Email Fallback', 'chip-for-fluentcart'),
+                'label' => __('Email Fallback', 'chip-for-fluent-cart'),
                 'type' => 'email',
                 'required' => false,
-                'description' => __('Fallback email address for purchase creation', 'chip-for-fluentcart')
+                'description' => __('Fallback email address for purchase creation', 'chip-for-fluent-cart')
             ),
             'payment_method_whitelist_heading' => array(
                 'value' =>
@@ -667,15 +667,15 @@ class Chip extends AbstractPaymentGateway
                             <h3 class="text-lg font-semibold mb-2">%s</h3>
                             <p class="text-sm text-gray-600">%s</p>
                         </div>',
-                        __('Payment Method Whitelist', 'chip-for-fluentcart'),
-                        __('You may not tick any of the options to activate all payment methods.', 'chip-for-fluentcart')
+                        __('Payment Method Whitelist', 'chip-for-fluent-cart'),
+                        __('You may not tick any of the options to activate all payment methods.', 'chip-for-fluent-cart')
                     ),
                     [
                         'div' => ['class' => true],
                         'h3' => ['class' => true],
                         'p' => ['class' => true],
                     ]),
-                'label' => __('Payment Method Whitelist', 'chip-for-fluentcart'),
+                'label' => __('Payment Method Whitelist', 'chip-for-fluent-cart'),
                 'type' => 'html_attr'
             ),
             'payment_method_whitelist' => array(
@@ -684,27 +684,27 @@ class Chip extends AbstractPaymentGateway
                 'type' => 'checkbox_group',
                 'required' => false,
                 'options' => array(
-                    'fpx' => __('Online Banking (FPX)', 'chip-for-fluentcart'),
-                    'fpx_b2b1' => __('Corporate Online Banking (FPX)', 'chip-for-fluentcart'),
-                    'mastercard' => __('Mastercard', 'chip-for-fluentcart'),
-                    'maestro' => __('Maestro', 'chip-for-fluentcart'),
-                    'visa' => __('Visa', 'chip-for-fluentcart'),
-                    'razer_atome' => __('Atome', 'chip-for-fluentcart'),
-                    'razer_grabpay' => __('Razer GrabPay', 'chip-for-fluentcart'),
-                    'razer_maybankqr' => __('Razer MaybankQR', 'chip-for-fluentcart'),
-                    'razer_shopeepay' => __('Razer ShopeePay', 'chip-for-fluentcart'),
-                    'razer_tng' => __('Razer TnG', 'chip-for-fluentcart'),
-                    'duitnow_qr' => __('DuitNow QR', 'chip-for-fluentcart'),
-                    'mpgs_google_pay' => __('Google Pay', 'chip-for-fluentcart'),
-                    'mpgs_apple_pay' => __('Apple Pay', 'chip-for-fluentcart'),
+                    'fpx' => __('Online Banking (FPX)', 'chip-for-fluent-cart'),
+                    'fpx_b2b1' => __('Corporate Online Banking (FPX)', 'chip-for-fluent-cart'),
+                    'mastercard' => __('Mastercard', 'chip-for-fluent-cart'),
+                    'maestro' => __('Maestro', 'chip-for-fluent-cart'),
+                    'visa' => __('Visa', 'chip-for-fluent-cart'),
+                    'razer_atome' => __('Atome', 'chip-for-fluent-cart'),
+                    'razer_grabpay' => __('Razer GrabPay', 'chip-for-fluent-cart'),
+                    'razer_maybankqr' => __('Razer MaybankQR', 'chip-for-fluent-cart'),
+                    'razer_shopeepay' => __('Razer ShopeePay', 'chip-for-fluent-cart'),
+                    'razer_tng' => __('Razer TnG', 'chip-for-fluent-cart'),
+                    'duitnow_qr' => __('DuitNow QR', 'chip-for-fluent-cart'),
+                    'mpgs_google_pay' => __('Google Pay', 'chip-for-fluent-cart'),
+                    'mpgs_apple_pay' => __('Apple Pay', 'chip-for-fluent-cart'),
                 )
             ),
             'debug' => array(
                 'value' => $settings['debug'] ?? 'no',
-                'label' => __('Enable Debug', 'chip-for-fluentcart'),
+                'label' => __('Enable Debug', 'chip-for-fluent-cart'),
                 'type' => 'yes_no',
                 'required' => false,
-                'description' => __('Enable debug mode to log payment processing details for troubleshooting.', 'chip-for-fluentcart')
+                'description' => __('Enable debug mode to log payment processing details for troubleshooting.', 'chip-for-fluent-cart')
             ),
         );
 
@@ -721,7 +721,7 @@ class Chip extends AbstractPaymentGateway
     {
         return array(
             'status'  => 'success',
-            'message' => __( 'Settings saved successfully', 'chip-for-fluentcart' ),
+            'message' => __( 'Settings saved successfully', 'chip-for-fluent-cart' ),
         );
     }
 
@@ -755,7 +755,7 @@ class Chip extends AbstractPaymentGateway
         if (!$amount) {
             return new \WP_Error(
                 'fluent_cart_chip_refund_error',
-                __('Refund amount is required.', 'chip-for-fluentcart')
+                __('Refund amount is required.', 'chip-for-fluent-cart')
             );
         }
 
@@ -765,7 +765,7 @@ class Chip extends AbstractPaymentGateway
         if (!$purchaseId) {
             return new \WP_Error(
                 'fluent_cart_chip_refund_error',
-                __('Invalid transaction ID for refund.', 'chip-for-fluentcart')
+                __('Invalid transaction ID for refund.', 'chip-for-fluent-cart')
             );
         }
 
@@ -777,7 +777,7 @@ class Chip extends AbstractPaymentGateway
         if (empty($secretKey) || empty($brandId)) {
             return new \WP_Error(
                 'fluent_cart_chip_refund_error',
-                __('CHIP API credentials are not configured.', 'chip-for-fluentcart')
+                __('CHIP API credentials are not configured.', 'chip-for-fluent-cart')
             );
         }
 
@@ -800,7 +800,7 @@ class Chip extends AbstractPaymentGateway
         if (empty($refunded)) {
             return new \WP_Error(
                 'fluent_cart_chip_refund_error',
-                __('Refund could not be processed. Please check your CHIP account.', 'chip-for-fluentcart')
+                __('Refund could not be processed. Please check your CHIP account.', 'chip-for-fluent-cart')
             );
         }
 
@@ -811,7 +811,7 @@ class Chip extends AbstractPaymentGateway
         if ( ! in_array( $status, $acceptedStatus, true ) ) {
             return new \WP_Error(
                 'fluent_cart_chip_refund_error',
-                __('Refund could not be processed in CHIP. Please check your CHIP account.', 'chip-for-fluentcart')
+                __('Refund could not be processed in CHIP. Please check your CHIP account.', 'chip-for-fluent-cart')
             );
         }
 

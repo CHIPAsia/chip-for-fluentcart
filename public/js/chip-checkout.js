@@ -10,7 +10,7 @@
 	'use strict';
 
 	/**
-	 * Listen for FluentCart payment gateway load event
+	 * Listen for Fluent Cart payment gateway load event
 	 * This event is fired when the CHIP payment gateway is selected on checkout
 	 * 
 	 * Event name format: fluent_cart_load_payments_{gateway_slug}
@@ -18,7 +18,7 @@
 	 */
 	window.addEventListener("fluent_cart_load_payments_chip", function (e) {
 		
-		// Get submit button from FluentCart checkout variables
+		// Get submit button from Fluent Cart checkout variables
 		const submitButton = window.fluentcart_checkout_vars?.submit_button;
 
 		// Get the gateway container element
@@ -44,7 +44,7 @@
 		}
 
 		// Enable the checkout button
-		// When clicked, FluentCart will process the payment via makePaymentFromPaymentInstance()
+		// When clicked, Fluent Cart will process the payment via makePaymentFromPaymentInstance()
 		// and redirect to CHIP payment page
 		if (e.detail && e.detail.paymentLoader && submitButton) {
 			e.detail.paymentLoader.enableCheckoutButton(submitButton.text);
