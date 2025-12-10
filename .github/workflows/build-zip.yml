@@ -14,18 +14,22 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v4
 
-    - name: Generate zip
+    - name: Prepare plugin folder
       run: |
-        # Create zip file using git archive which automatically respects .gitignore
-        # --prefix adds a folder inside the zip so it extracts properly
-        git archive --format=zip --prefix=chip-for-fluent-cart/ --output=chip-for-fluent-cart.zip HEAD
+        # Create a clean directory structure for the plugin
+        # The folder name MUST match the plugin slug for WordPress
+        mkdir -p dist/chip-for-fluent-cart
         
-        echo "✅ Created chip-for-fluent-cart.zip"
-        ls -lh chip-for-fluent-cart.zip
+        # Use git archive to get clean files (respects .gitignore)
+        git archive HEAD | tar -x -C dist/chip-for-fluent-cart
+        
+        echo "✅ Prepared plugin folder"
+        ls -la dist/
 
     - name: Upload zip artifact
       uses: actions/upload-artifact@v4
       with:
         name: chip-for-fluent-cart
-        path: chip-for-fluent-cart.zip
+        # Upload the parent folder so the zip contains chip-for-fluent-cart/ at root
+        path: dist/
         retention-days: 5
