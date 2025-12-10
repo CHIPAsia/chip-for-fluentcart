@@ -6,7 +6,7 @@
  * @author     CHIP IN SDN. BHD. <support@chip-in.asia>
  */
 
-(function( $ ) {
+(function() {
 	'use strict';
 
 	/**
@@ -52,5 +52,5 @@
 
 	});
 
-})( jQuery );
+})();
 
