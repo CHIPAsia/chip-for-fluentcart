@@ -594,7 +594,8 @@ class Chip extends AbstractPaymentGateway
 
             $actionActivity = [
                 'title'   => __('Order status updated', 'chip-for-fluent-cart'),
-                'content' => sprintf(__('Order status has been updated from %s to %s', 'chip-for-fluent-cart'), $orderStatus, $order->status)
+                /* translators: %1$s: old order status, %2$s: new order status */
+                'content' => sprintf(__('Order status has been updated from %1$s to %2$s', 'chip-for-fluent-cart'), $orderStatus, $order->status)
             ];
 
             ( new OrderStatusUpdated( $order, $orderStatus, 'completed', true, $actionActivity, 'order_status' ) )->dispatch();
