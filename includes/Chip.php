@@ -495,9 +495,9 @@ class Chip extends AbstractPaymentGateway
                 }
             }
 
-            // Add email fallback if configured
+            // Add email fallback if configured and client email is not set
             $emailFallback = $this->settings->getEmailFallback();
-            if (!empty($emailFallback)) {
+            if (!empty($emailFallback) && empty($chipParams['client']['email'])) {
                 if (!isset($chipParams['client'])) {
                     $chipParams['client'] = [];
                 }
