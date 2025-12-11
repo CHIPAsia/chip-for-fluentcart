@@ -101,24 +101,24 @@ class ChipFluentCartApi {
 		$this->log_info( sprintf( "get payment: %s", $payment_id ) );
 		// time() is to force fresh instead cache
 		$result = $this->call( 'GET', "/purchases/{$payment_id}/?time=" . time() );
-		// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_var_export -- Debug logging only when enabled.
-		$this->log_info( sprintf( 'success check result: %s', var_export( $result, true ) ) );
+		// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_print_r -- Debug logging only when enabled.
+		$this->log_info( sprintf( 'success check result: %s', print_r( $result, true ) ) );
 		return $result;
 	}
 
 	public function refund_payment( $payment_id, $params ) {
 		$this->log_info( sprintf( "refunding payment: %s", $payment_id ) );
 		$result = $this->call( 'POST', "/purchases/{$payment_id}/refund/", $params );
-		// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_var_export -- Debug logging only when enabled.
-		$this->log_info( sprintf( "payment refund result: %s", var_export( $result, true ) ) );
+		// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_print_r -- Debug logging only when enabled.
+		$this->log_info( sprintf( "payment refund result: %s", print_r( $result, true ) ) );
 		return $result;
 	}
 
 	public function public_key() {
 		$this->log_info( 'getting public key' );
 		$result = $this->call( 'GET', '/public_key/' );
-		// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_var_export -- Debug logging only when enabled.
-		$this->log_info( sprintf( 'public key: %s', var_export( $result, true ) ) );
+		// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_print_r -- Debug logging only when enabled.
+		$this->log_info( sprintf( 'public key: %s', print_r( $result, true ) ) );
 		return $result;
 	}
 
@@ -169,13 +169,13 @@ class ChipFluentCartApi {
 	}
 
 	private function request( $method, $url, $params = [], $headers = [] ) {
-		// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_var_export -- Debug logging only when enabled.
+		// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_print_r -- Debug logging only when enabled.
 		$this->log_info( sprintf(
 			'%s `%s`\n%s\n%s',
 			$method,
 			$url,
-			var_export( $params, true ),
-			var_export( $headers, true )
+			print_r( $params, true ),
+			print_r( $headers, true )
 		) );
 
 		$wp_request = wp_remote_request( $url, array(
