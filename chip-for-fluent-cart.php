@@ -12,56 +12,59 @@
  * Reference: https://dev.fluentcart.com/payment-methods-integration/quick-implementation.html#step-4-create-javascript-file-for-frontend-checkout
  *
  * Requires Plugins: fluent-cart
+ *
+ * @package Chip_For_Fluentcart
  */
+
 // If this file is called directly, abort.
 if ( ! defined( 'WPINC' ) ) {
 	die;
 }
 
 /**
- * Define plugin version
+ * Define plugin version.
  */
 define( 'CHIP_FOR_FLUENTCART_VERSION', '1.0.0' );
 
 /**
- * Register CHIP payment gateway with Fluent Cart
+ * Register CHIP payment gateway with Fluent Cart.
  */
 add_action(
 	'fluent_cart/register_payment_methods',
-	function ( $app ) {
+	function () {
 
 		if ( ! function_exists( 'fluent_cart_api' ) ) {
-			return; // Fluent Cart not active
+			return; // Fluent Cart not active.
 		}
 
-		// Include CHIP payment gateway classes
-		require_once plugin_dir_path( __FILE__ ) . 'includes/ChipLogger.php';
-		require_once plugin_dir_path( __FILE__ ) . 'includes/ChipFluentCartApi.php';
-		require_once plugin_dir_path( __FILE__ ) . 'includes/Chip.php';
+		// Include CHIP payment gateway classes.
+		require_once plugin_dir_path( __FILE__ ) . 'includes/class-chiplogger.php';
+		require_once plugin_dir_path( __FILE__ ) . 'includes/class-chipfluentcartapi.php';
+		require_once plugin_dir_path( __FILE__ ) . 'includes/class-chip.php';
 		require_once plugin_dir_path( __FILE__ ) . 'includes/class-chipsettingsbase.php';
 
-		// Create and register your custom gateway
-		$chipGateway = new \FluentCart\App\Modules\PaymentMethods\Chip\Chip();
-		fluent_cart_api()->registerCustomPaymentMethod( 'chip', $chipGateway );
+		// Create and register your custom gateway.
+		$chip_gateway = new \FluentCart\App\Modules\PaymentMethods\Chip\Chip();
+		fluent_cart_api()->registerCustomPaymentMethod( 'chip', $chip_gateway );
 	}
 );
 
 /**
- * Register init redirect handler using init hook (not admin-ajax)
- * This needs to be in the main plugin file to avoid wp-admin access issues
+ * Register init redirect handler using init hook (not admin-ajax).
+ * This needs to be in the main plugin file to avoid wp-admin access issues.
  */
 add_action(
 	'init',
 	function () {
 		if ( ! function_exists( 'fluent_cart_api' ) ) {
-			return; // Fluent Cart not active
+			return; // Fluent Cart not active.
 		}
 
-		// Get the CHIP payment gateway instance using GatewayManager
-		$chipGateway = \FluentCart\App\Modules\PaymentMethods\Core\GatewayManager::getInstance( 'chip' );
+		// Get the CHIP payment gateway instance using GatewayManager.
+		$chip_gateway = \FluentCart\App\Modules\PaymentMethods\Core\GatewayManager::getInstance( 'chip' );
 
-		if ( $chipGateway && method_exists( $chipGateway, 'handleInitRedirect' ) ) {
-			$chipGateway->handleInitRedirect();
+		if ( $chip_gateway && method_exists( $chip_gateway, 'handleInitRedirect' ) ) {
+			$chip_gateway->handleInitRedirect();
 		}
 	},
 	100,
@@ -69,7 +72,7 @@ add_action(
 );
 
 /**
- * Add settings link on plugin page
+ * Add settings link on plugin page.
  */
 add_filter(
 	'plugin_action_links_' . plugin_basename( __FILE__ ),
