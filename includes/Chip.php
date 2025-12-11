@@ -123,12 +123,10 @@ class Chip extends AbstractPaymentGateway
             $customer = $order->customer;
             $transaction = $paymentInstance->transaction;
 
-            // Get order items
+            // Get order items from order_items relation
             $orderItems = [];
-            if (isset($order->items) && is_array($order->items)) {
-                $orderItems = $order->items;
-            } elseif (method_exists($order, 'getItems')) {
-                $orderItems = $order->getItems();
+            if (isset($order->order_items) && count($order->order_items) > 0) {
+                $orderItems = $order->order_items;
             }
 
             // Get customer full name
@@ -395,33 +393,14 @@ class Chip extends AbstractPaymentGateway
                     $productPrice = 0;
                     $productQty = 1;
 
-                    //TODO: Verify this
                     // Handle different item structures (values already in cents from FluentCart)
                     if (is_object($item)) {
-                        $productName = $item->item_name ?? $item->title ?? $item->name ?? '';
-                        // Get unit price (if line_total exists, divide by quantity to get unit price)
-                        if (isset($item->line_total) && isset($item->quantity)) {
-                            $productPrice = (int) ($item->line_total / $item->quantity);
-                        } elseif (isset($item->line_total) && isset($item->qty)) {
-                            $productPrice = (int) ($item->line_total / $item->qty);
-                        } elseif (isset($item->price)) {
-                            $productPrice = (int) $item->price;
-                        } else {
-                            $productPrice = 0;
-                        }
+                        $productName = $item->post_title ?? $item->item_name ?? $item->title ?? $item->name ?? '';
+                        $productPrice = (int) ($item->line_total ?? 0);
                         $productQty = $item->quantity ?? $item->qty ?? 1;
                     } elseif (is_array($item)) {
-                        $productName = $item['item_name'] ?? $item['title'] ?? $item['name'] ?? '';
-                        // Get unit price (if line_total exists, divide by quantity to get unit price)
-                        if (isset($item['line_total']) && isset($item['quantity'])) {
-                            $productPrice = (int) ($item['line_total'] / $item['quantity']);
-                        } elseif (isset($item['line_total']) && isset($item['qty'])) {
-                            $productPrice = (int) ($item['line_total'] / $item['qty']);
-                        } elseif (isset($item['price'])) {
-                            $productPrice = (int) $item['price'];
-                        } else {
-                            $productPrice = 0;
-                        }
+                        $productName = $item['post_title'] ?? $item['item_name'] ?? $item['title'] ?? $item['name'] ?? '';
+                        $productPrice = (int) ($item['line_total'] ?? 0);
                         $productQty = $item['quantity'] ?? $item['qty'] ?? 1;
                     }
 
