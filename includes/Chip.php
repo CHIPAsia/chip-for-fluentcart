@@ -387,28 +387,23 @@ class Chip extends AbstractPaymentGateway
             $products = [];
             $orderItems = $paymentData['order_items'] ?? [];
             
-            if (!empty($orderItems) && is_array($orderItems)) {
+            // Handle both arrays and Collection objects (is_iterable covers both)
+            if (!empty($orderItems) && is_iterable($orderItems)) {
                 foreach ($orderItems as $item) {
                     $productName = '';
                     $productPrice = 0;
                     $productQty = 1;
 
-                    // Handle different item structures (values already in cents from FluentCart)
-                    if (is_object($item)) {
-                        $productName = $item->post_title ?? $item->item_name ?? $item->title ?? $item->name ?? '';
-                        $productPrice = (int) ($item->line_total ?? 0);
-                        $productQty = $item->quantity ?? $item->qty ?? 1;
-                    } elseif (is_array($item)) {
-                        $productName = $item['post_title'] ?? $item['item_name'] ?? $item['title'] ?? $item['name'] ?? '';
-                        $productPrice = (int) ($item['line_total'] ?? 0);
-                        $productQty = $item['quantity'] ?? $item['qty'] ?? 1;
-                    }
+                    // Handle OrderItem model objects (values already in cents from FluentCart)
+                    $productName = $item->post_title ?? '';
+                    $productPrice = (int) ($item->line_total ?? 0);
+                    $productQty = (int) ($item->quantity ?? 1);
 
                     if (!empty($productName)) {
                         $products[] = [
                             'name' => $productName,
                             'price' => $productPrice,
-                            'qty' => (int) $productQty
+                            'qty' => $productQty
                         ];
                     }
                 }
