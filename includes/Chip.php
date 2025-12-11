@@ -134,6 +134,25 @@ class Chip extends AbstractPaymentGateway
             // Get customer full name
             $customerFullName = trim($customer->first_name . ' ' . $customer->last_name);
 
+            // Get customer phone from billing or shipping address meta
+            $customerPhone = '';
+            if (isset($order->billing_address->meta)) {
+                $billingMeta = is_string($order->billing_address->meta) 
+                    ? json_decode($order->billing_address->meta, true) 
+                    : $order->billing_address->meta;
+                if (!empty($billingMeta['other_data']['phone'])) {
+                    $customerPhone = $billingMeta['other_data']['phone'];
+                }
+            }
+            if (empty($customerPhone) && isset($order->shipping_address->meta)) {
+                $shippingMeta = is_string($order->shipping_address->meta) 
+                    ? json_decode($order->shipping_address->meta, true) 
+                    : $order->shipping_address->meta;
+                if (!empty($shippingMeta['other_data']['phone'])) {
+                    $customerPhone = $shippingMeta['other_data']['phone'];
+                }
+            }
+
             // Prepare payment data
             $paymentData = [
                 'amount' => $transaction->total,
@@ -141,6 +160,7 @@ class Chip extends AbstractPaymentGateway
                 'order_id' => $order->uuid,
                 'customer_email' => $customer->email,
                 'customer_full_name' => $customerFullName,
+                'customer_phone' => $customerPhone,
                 'customer_country' => $customer->country,
                 'customer_city' => $customer->city,
                 'customer_zip_code' => $customer->postcode,
@@ -374,6 +394,7 @@ class Chip extends AbstractPaymentGateway
                     $productPrice = 0;
                     $productQty = 1;
 
+                    //TODO: Verify this
                     // Handle different item structures (values already in cents from FluentCart)
                     if (is_object($item)) {
                         $productName = $item->item_name ?? $item->title ?? $item->name ?? '';
@@ -465,6 +486,11 @@ class Chip extends AbstractPaymentGateway
                 // Add full name
                 if (!empty($paymentData['customer_full_name'])) {
                     $chipParams['client']['full_name'] = $paymentData['customer_full_name'];
+                }
+                
+                // Add phone
+                if (!empty($paymentData['customer_phone'])) {
+                    $chipParams['client']['phone'] = $paymentData['customer_phone'];
                 }
                 
                 // Add country
