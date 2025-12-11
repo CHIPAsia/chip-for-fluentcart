@@ -22,6 +22,10 @@ jobs:
           rsync -av --exclude='.*' --exclude='build' ./ ./build/chip-for-fluent-cart/
           ls -la ./build/chip-for-fluent-cart/
 
+      # Runs all check categories by default: general, plugin_repo, security, performance, accessibility
+      # To run specific categories only, add: categories: |
+      #   general
+      #   security
       - name: Run Plugin Check
         uses: wordpress/plugin-check-action@v1
         with:
