@@ -9,7 +9,6 @@
  * License: GPLv3
  * License URI: https://www.gnu.org/licenses/gpl-3.0.html
  * Text Domain: chip-for-fluent-cart
- * Domain Path: /languages
  * Reference: https://dev.fluentcart.com/modules/payment-methods
  * Reference: https://dev.fluentcart.com/payment-methods-integration/quick-implementation.html#step-4-create-javascript-file-for-frontend-checkout
  * 
