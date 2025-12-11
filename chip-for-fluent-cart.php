@@ -38,7 +38,7 @@ add_action(
 		require_once plugin_dir_path( __FILE__ ) . 'includes/ChipLogger.php';
 		require_once plugin_dir_path( __FILE__ ) . 'includes/ChipFluentCartApi.php';
 		require_once plugin_dir_path( __FILE__ ) . 'includes/Chip.php';
-		require_once plugin_dir_path( __FILE__ ) . 'includes/ChipSettingsBase.php';
+		require_once plugin_dir_path( __FILE__ ) . 'includes/class-chipsettingsbase.php';
 
 		// Create and register your custom gateway
 		$chipGateway = new \FluentCart\App\Modules\PaymentMethods\Chip\Chip();
