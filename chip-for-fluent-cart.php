@@ -89,3 +89,33 @@ add_filter(
 		return $links;
 	}
 );
+
+/**
+ * Enqueue admin script to replace CHIP text with logo in FluentCart settings.
+ */
+add_action(
+	'admin_enqueue_scripts',
+	function () {
+		// Only load on FluentCart admin pages.
+		$screen = get_current_screen();
+		if ( ! $screen || false === strpos( $screen->id, 'fluent-cart' ) ) {
+			return;
+		}
+
+		wp_enqueue_script(
+			'chip-admin',
+			plugin_dir_url( __FILE__ ) . 'assets/admin.js',
+			array(),
+			CHIP_FOR_FLUENTCART_VERSION,
+			true
+		);
+
+		wp_localize_script(
+			'chip-admin',
+			'chipAdminData',
+			array(
+				'logoUrl' => plugin_dir_url( __FILE__ ) . 'assets/logo.png',
+			)
+		);
+	}
+);
