@@ -196,31 +196,31 @@ class Chip extends AbstractPaymentGateway {
 
 			// Prepare payment data.
 			$payment_data = array(
-				'amount'                   => $transaction->total,
-				'currency'                 => $transaction->currency,
-				'order_id'                 => $order->uuid,
-				'customer_email'           => $customer->email,
-				'customer_full_name'       => $customer_full_name,
-				'customer_phone'           => $customer_phone,
-				'customer_personal_code'   => $customer->id,
-				'customer_notes'           => $order->note ?? '',
+				'amount'                  => $transaction->total,
+				'currency'                => $transaction->currency,
+				'order_id'                => $order->uuid,
+				'customer_email'          => $customer->email,
+				'customer_full_name'      => $customer_full_name,
+				'customer_phone'          => $customer_phone,
+				'customer_personal_code'  => $customer->id,
+				'customer_notes'          => $order->note ?? '',
 				// Billing address.
-				'billing_street_address'   => $billing_street,
-				'billing_country'          => $billing_address->country ?? '',
-				'billing_city'             => $billing_address->city ?? '',
-				'billing_zip_code'         => $billing_address->postcode ?? '',
-				'billing_state'            => $billing_address->state ?? '',
+				'billing_street_address'  => $billing_street,
+				'billing_country'         => $billing_address->country ?? '',
+				'billing_city'            => $billing_address->city ?? '',
+				'billing_zip_code'        => $billing_address->postcode ?? '',
+				'billing_state'           => $billing_address->state ?? '',
 				// Shipping address.
-				'shipping_street_address'  => $shipping_street,
-				'shipping_country'         => $shipping_address->country ?? '',
-				'shipping_city'            => $shipping_address->city ?? '',
-				'shipping_zip_code'        => $shipping_address->postcode ?? '',
-				'shipping_state'           => $shipping_address->state ?? '',
+				'shipping_street_address' => $shipping_street,
+				'shipping_country'        => $shipping_address->country ?? '',
+				'shipping_city'           => $shipping_address->city ?? '',
+				'shipping_zip_code'       => $shipping_address->postcode ?? '',
+				'shipping_state'          => $shipping_address->state ?? '',
 				// Other data.
-				'return_url'               => $this->getReturnUrl( $transaction ),
-				'order_items'              => $order_items,
-				'cancel_url'               => self::getCancelUrl( $transaction ),
-				'transaction_uuid'         => $transaction->uuid,
+				'return_url'              => $this->getReturnUrl( $transaction ),
+				'order_items'             => $order_items,
+				'cancel_url'              => self::getCancelUrl( $transaction ),
+				'transaction_uuid'        => $transaction->uuid,
 			);
 
 			// Process payment with gateway API.
