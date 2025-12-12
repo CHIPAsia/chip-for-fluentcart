@@ -94,10 +94,6 @@ You can visit our [API documentation](https://docs.chip-in.asia/) for your refer
 
 This plugin rely on CHIP API ([CHIP_FOR_FLUENTCART_ROOT_URL](https://gate.chip-in.asia)) as follows:
 
-  - **/payment_methods/**
-
-    - This is for getting available payment method specific to your account
-
   - **/purchases/**
 
     - This is for accepting payment
@@ -110,54 +106,9 @@ This plugin rely on CHIP API ([CHIP_FOR_FLUENTCART_ROOT_URL](https://gate.chip-i
 
     - This is for refunding payment
 
-  - **/purchases/<id\>/charge/**
+  - **/public_key/**
 
-    - This is for charging payment with token
-
-  - **/purchases/<id\>/delete_recurring_token/**
-
-    - This is for deleting card token
-
-  - **/clients/**
-
-    - This is for creating clients in CHIP
-
-  - **/clients/?q=<email\>**
-
-    - This is for getting client in CHIP with email
-
-  - **/clients/<id\>/**
-
-    - This to get client and patch client information
-
-Additionally, for FPX Bank status, this plugin rely on CHIP API ([WC_CHIP_FPX_ROOT_URL](https://api.chip-in.asia/health_check)) as follows:
-
-  - **/fpx_b2c**
-
-    - This is for getting FPX B2C status
-
-  - **/fpx_b2b1**
-
-    - This is for getting FPX B2B1 status
-
-= How to configure CHIP payment method in FluentCart? =
-
-1. Navigate to **FluentCart** -> **Settings** -> **Payment Settings**
-
-2. Find **CHIP** in the payment methods list and click manage to configure
-
-3. Set the following required fields:
-   - **Brand ID**: Your CHIP Brand ID
-   - **Secret Key**: Your CHIP Secret Key
-
-4. Optional settings:
-   - **Email Fallback**: Fallback email address for purchase creation
-   - **Payment Method Whitelist**: Select specific payment methods to enable (leave empty to enable all)
-   - **Enable Debug**: Enable debug mode to log payment processing details
-
-5. Toggle **Payment Activation** to enable the payment method
-
-6. Click **Save Settings**
+    - This is for getting public key to verify webhook signature
 
 == Links ==
 
