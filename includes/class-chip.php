@@ -221,6 +221,7 @@ class Chip extends AbstractPaymentGateway {
 				'order_items'             => $order_items,
 				'cancel_url'              => self::getCancelUrl( $transaction ),
 				'transaction_uuid'        => $transaction->uuid,
+				'shipping_total'          => $order->shipping_total ?? 0,
 			);
 
 			// Process payment with gateway API.
@@ -462,6 +463,16 @@ class Chip extends AbstractPaymentGateway {
 				}
 			}
 
+			// Add shipping fee if greater than 0.
+			$shipping_total = (int) ( $payment_data['shipping_total'] ?? 0 );
+			if ( $shipping_total > 0 ) {
+				$products[] = array(
+					'name'  => __( 'Shipping Fee', 'chip-for-fluent-cart' ),
+					'price' => $shipping_total,
+					'qty'   => 1,
+				);
+			}
+
 			// If no products found, create a default product entry (amount already in cents).
 			if ( empty( $products ) ) {
 				$products[] = array(
@@ -489,7 +500,6 @@ class Chip extends AbstractPaymentGateway {
 			// Prepare CHIP API parameters (amount already in cents from FluentCart).
 			$chip_params = array(
 				'brand_id'         => $brand_id,
-				'total_override'   => (int) $payment_data['amount'],
 				'reference'        => $payment_data['order_id'],
 				'success_redirect' => $init_url,
 				'success_callback' => $callback_url,
@@ -501,6 +511,7 @@ class Chip extends AbstractPaymentGateway {
 				// 'platform' => 'fluentcart'.
 				'purchase'         => array(
 					'currency' => $payment_data['currency'],
+					'total_override'   => (int) $payment_data['amount'],
 					'products' => $products,
 					'notes'    => ! empty( $payment_data['customer_notes'] ) ? mb_substr( trim( $payment_data['customer_notes'] ), 0, 1000 ) : '',
 				),
