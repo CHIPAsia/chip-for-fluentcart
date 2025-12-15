@@ -268,3 +268,4 @@ class ChipFluentCartApi {
 		$this->logger->log( $error_text, 'error', $other_info );
 	}
 }
+

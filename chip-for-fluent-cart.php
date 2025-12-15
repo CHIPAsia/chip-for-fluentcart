@@ -38,10 +38,10 @@ add_action(
 		}
 
 		// Include CHIP payment gateway classes.
-		require_once plugin_dir_path( __FILE__ ) . 'includes/class-chiplogger.php';
-		require_once plugin_dir_path( __FILE__ ) . 'includes/class-chipfluentcartapi.php';
+		require_once plugin_dir_path( __FILE__ ) . 'includes/class-chip-logger.php';
+		require_once plugin_dir_path( __FILE__ ) . 'includes/class-chip-fluent-cart-api.php';
 		require_once plugin_dir_path( __FILE__ ) . 'includes/class-chip.php';
-		require_once plugin_dir_path( __FILE__ ) . 'includes/class-chipsettingsbase.php';
+		require_once plugin_dir_path( __FILE__ ) . 'includes/class-chip-settings-base.php';
 
 		// Create and register your custom gateway.
 		$chip_gateway = new \FluentCart\App\Modules\PaymentMethods\Chip\Chip();
