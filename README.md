@@ -52,7 +52,6 @@ This module adds CHIP payment method option to your WordPress-based FluentCart s
 * Debug logging for troubleshooting
 * Webhook support for payment status updates
 * Automatic order status updates
-* Subscription support
 
 ## Known Issues
 

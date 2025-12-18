@@ -9,21 +9,28 @@ Requires PHP: 7.4
 License: GPLv3
 License URI: http://www.gnu.org/licenses/gpl-3.0.html
 
-CHIP - Digital Finance Platform. Securely accept one-time payment with CHIP for FluentCart.
+Accept payments via FPX, Visa, Mastercard, E-Wallets, and DuitNow QR on your FluentCart store.
 
 == Description ==
 
 This is an official CHIP plugin for FluentCart.
 
-CHIP is a comprehensive Digital Finance Platform specifically designed to support and empower Micro, Small and Medium Enterprises (MSMEs). We provide a suite of solutions encompassing payment collection, expense management, risk mitigation, and treasury management.
+With this plugin, merchants can collect payments through multiple channels:
 
-Our aim is to help businesses streamline their financial processes, reduce operational complexity, and drive growth.
+* **FPX** – Malaysia's online banking payment gateway.
+* **Credit/Debit Cards** – Visa and Mastercard.
+* **E-Wallets** – GrabPay, Touch 'n Go, ShopeePay, Atome, and more.
+* **DuitNow QR** – Malaysia's national QR payment standard.
 
-With CHIP, you gain a financial partner committed to simplifying, digitizing, and enhancing your financial operations for ultimate success.
+= Key Features =
 
-This plugin enables your FluentCart site to integrate with CHIP as documented in the [API Documentation](https://docs.chip-in.asia).
+* **Easy Setup** – Configure with just your Brand ID and Secret Key.
+* **Real-time Callbacks (IPN)** – Order status updates automatically via webhook notifications.
+* **Secure Payments** – All transactions are processed through CHIP's PCI-DSS compliant platform.
+* **Refund Support** – Process refunds directly from the FluentCart dashboard.
+* **Payment Method Whitelist** – Optionally restrict available payment methods.
 
-This plugin includes support for FluentCart Subscription products.
+For integration details, refer to the [API Documentation](https://docs.chip-in.asia).
 
 == Screenshots ==
 
